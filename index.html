@@ -430,6 +430,8 @@
       .table-header { flex-direction: column; align-items: stretch; gap: 10px; }
       .table-header .table-tabs { width: 100%; }
       .table-header .tab-btn { flex: 1; text-align: center; }
+      /* Ẩn cột 7d% trên mobile để bảng vừa khít, không phải cuộn ngang */
+      .chg7d-cell { display: none; }
       /* Sắp xếp lại: Top Coin lên đầu, rồi đến tâm lý thị trường */
       .col-left { gap: 16px; }
       .crypto-table-wrap { order: -2; }
@@ -582,7 +584,7 @@
               <th data-sort="rank">#&nbsp;Coin</th>
               <th data-sort="price">Giá (USD)</th>
               <th data-sort="change24h">24h %</th>
-              <th data-sort="change7d">7d %</th>
+              <th class="chg7d-cell" data-sort="change7d">7d %</th>
               <th class="sparkline-cell">7d chart</th>
               <th class="volume-cell" data-sort="volume">Volume 24h</th>
               <th class="cap-cell" data-sort="cap">Vốn hóa</th>
@@ -854,7 +856,7 @@ function renderTable() {
       </td>
       <td class="price-cell" data-price-sym="${sym}">${fmtPrice(c.current_price)}</td>
       <td data-chg-sym="${sym}"><span class="change-badge ${clsChange(ch24)}">${arrowChange(ch24)} ${Math.abs(ch24 ?? 0).toFixed(2)}%</span></td>
-      <td><span class="change-badge ${clsChange(ch7)}">${arrowChange(ch7)} ${Math.abs(ch7 ?? 0).toFixed(2)}%</span></td>
+      <td class="chg7d-cell"><span class="change-badge ${clsChange(ch7)}">${arrowChange(ch7)} ${Math.abs(ch7 ?? 0).toFixed(2)}%</span></td>
       <td class="sparkline-cell"><canvas id="${sparkId}" width="80" height="32"></canvas></td>
       <td class="volume-cell">${fmtUSD(c.total_volume)}</td>
       <td class="cap-cell">${fmtUSD(c.market_cap)}</td>
