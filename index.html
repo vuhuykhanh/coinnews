@@ -416,8 +416,31 @@
       .cap-cell, .volume-cell { display: none; }
       .sparkline-cell { display: none; }
     }
+    /* Thanh tâm lý gọn — chỉ hiện trên mobile */
+    .fng-mobile-bar { display: none; }
+
     /* Điện thoại */
     @media (max-width: 560px) {
+      /* Bỏ thẻ Vốn hóa Top 50 và Tăng/Giảm trong phần tổng quan */
+      [data-ov="cap"], [data-ov="updown"] { display: none; }
+      /* Ẩn card tâm lý lớn, thay bằng thanh nhỏ trên đầu */
+      .fng-card { display: none; }
+      .fng-mobile-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 10px 10px 0;
+        padding: 10px 14px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        text-decoration: none;
+        color: var(--text);
+      }
+      .fng-mb-left { font-size: 0.82rem; color: var(--muted); font-weight: 600; }
+      .fng-mb-right { display: flex; align-items: center; gap: 8px; }
+      .fng-mb-num { font-size: 1.15rem; font-weight: 800; }
+      .fng-mb-label { font-size: 0.78rem; font-weight: 600; }
       main { padding: 16px 10px; gap: 16px; }
       header { padding: 0 14px; height: 56px; }
       .logo { font-size: 1.1rem; gap: 7px; }
@@ -462,6 +485,15 @@
   <div class="ticker" id="ticker">
     <span class="ticker-item"><span class="ticker-symbol">—</span></span>
   </div>
+</div>
+
+<!-- THANH TÂM LÝ (chỉ hiện trên mobile) -->
+<div class="fng-mobile-bar" id="fng-mobile-bar">
+  <span class="fng-mb-left">😱 Tâm lý thị trường</span>
+  <span class="fng-mb-right">
+    <span class="fng-mb-num" id="fng-mb-num">—</span>
+    <span class="fng-mb-label" id="fng-mb-label">Đang tải...</span>
+  </span>
 </div>
 
 <!-- MAIN -->
@@ -714,22 +746,22 @@ function renderOverview() {
   const losers = allCoins.filter(c => (c.price_change_percentage_24h ?? 0) < 0).length
 
   document.getElementById('overview-grid').innerHTML = `
-    <div class="overview-card">
+    <div class="overview-card" data-ov="cap">
       <div class="ov-label">Vốn hóa Top 50</div>
       <div class="ov-value">${fmtUSD(totalCap)}</div>
       <div class="ov-sub ${clsChange(btcChange)}">${arrowChange(btcChange)} BTC ${Math.abs(btcChange).toFixed(2)}% (24h)</div>
     </div>
-    <div class="overview-card">
+    <div class="overview-card" data-ov="vol">
       <div class="ov-label">Volume 24h Top 50</div>
       <div class="ov-value">${fmtUSD(totalVol)}</div>
       <div class="ov-sub neu">Vol/Cap: ${totalCap ? (totalVol/totalCap*100).toFixed(1) : '—'}%</div>
     </div>
-    <div class="overview-card">
+    <div class="overview-card" data-ov="dom">
       <div class="ov-label">Dominance BTC</div>
       <div class="ov-value">${btcDom}%</div>
       <div class="ov-sub neu">ETH: ${ethDom}%</div>
     </div>
-    <div class="overview-card">
+    <div class="overview-card" data-ov="updown">
       <div class="ov-label">Tăng / Giảm hôm nay</div>
       <div class="ov-value" style="color:var(--green)">${gainers} <span style="color:var(--dim);font-size:1rem">/</span> <span style="color:var(--red)">${losers}</span></div>
       <div class="ov-sub neu">trong Top 50 coins</div>
@@ -1078,6 +1110,11 @@ async function loadFearGreed() {
     document.getElementById('fng-number').textContent = val
     document.getElementById('fng-number').style.color = color
     document.getElementById('fng-label').textContent = clsVI[cls] ?? cls
+    // Thanh tâm lý gọn trên mobile
+    const mbNum = document.getElementById('fng-mb-num')
+    const mbLabel = document.getElementById('fng-mb-label')
+    if (mbNum) { mbNum.textContent = val; mbNum.style.color = color }
+    if (mbLabel) { mbLabel.textContent = clsVI[cls] ?? cls; mbLabel.style.color = color }
   } catch(e) {
     document.getElementById('fng-label').textContent = 'Không tải được dữ liệu'
     console.warn('FNG error:', e)
