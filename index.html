@@ -834,8 +834,10 @@ function buildSymbolMap() {
 
 // Đăng ký nhận giá real-time cho các cặp <symbol>USDT trên Binance
 function subscribeSymbols() {
-  if (!_ws || _ws.readyState !== 1 || !_symbolSet.size) return
+  if (!_ws || _ws.readyState !== 1) return
   const params = [..._symbolSet].map(s => `${s.toLowerCase()}usdt@ticker`)
+  params.push('paxgusdt@ticker')  // PAXG = vàng (1 token = 1 oz)
+  if (!params.length) return
   _ws.send(JSON.stringify({ method: 'SUBSCRIBE', params, id: 1 }))
 }
 
@@ -853,6 +855,19 @@ function applyLivePrices(tickers) {
     const s = t.s
     if (!s || !s.endsWith('USDT')) continue
     const sym = s.slice(0, -4)          // BTCUSDT -> BTC
+
+    // Giá vàng real-time (PAXG = 1 oz XAU)
+    if (sym === 'PAXG') {
+      const gp = parseFloat(t.c)
+      if (isFinite(gp)) {
+        const up = gp >= (_goldXau ?? gp)
+        _goldXau = gp
+        _goldChange = parseFloat(t.P) || _goldChange
+        renderGold(up)
+      }
+      continue
+    }
+
     if (!_symbolSet.has(sym)) continue
     const price = parseFloat(t.c)       // last price
     const chg = parseFloat(t.P)         // 24h % change
@@ -1017,42 +1032,50 @@ async function loadFearGreed() {
 }
 
 // ========== GOLD ==========
-// PAXG (Pax Gold token) = 1 troy oz XAU — nguồn giá vàng quốc tế qua CoinGecko
+// PAXG (Pax Gold token) = 1 troy oz XAU. Giá ban đầu từ CoinGecko,
+// sau đó cập nhật real-time qua Binance (cặp PAXGUSDT) — xem applyLivePrices.
+const OZ_G = 31.1035  // 1 troy oz = 31.1035 g
+let _goldXau = null    // giá vàng /oz hiện tại
+let _goldChange = 0    // % thay đổi 24h
+
+function renderGold(flashUp) {
+  const xau = _goldXau
+  document.getElementById('gold-time').textContent = `Cập nhật: ${new Date().toLocaleTimeString('vi-VN')}`
+  const chBadge = (v) => v == null ? '' : `<span style="font-size:0.72rem;color:${v>=0?'var(--green)':'var(--red)'}">${arrowChange(v)} ${Math.abs(v).toFixed(2)}%</span>`
+  document.getElementById('gold-grid').innerHTML = `
+    <div class="gold-item">
+      <div class="gold-item-label">Vàng thế giới (XAU)</div>
+      <div class="gold-item-price" id="gold-oz">$${fmt(xau)}/oz</div>
+      <div class="gold-item-vnd">${xau ? fmtVND(xau) : '—'}/oz</div>
+      <div class="gold-item-change">${chBadge(_goldChange)}</div>
+    </div>
+    <div class="gold-item">
+      <div class="gold-item-label">Vàng / gram</div>
+      <div class="gold-item-price">$${xau ? fmt(xau / OZ_G) : '—'}/g</div>
+      <div class="gold-item-vnd">${xau ? fmtVND(xau / OZ_G) : '—'}/g</div>
+    </div>
+    <div class="gold-item">
+      <div class="gold-item-label">Quy đổi / lượng (37.5g)</div>
+      <div class="gold-item-price">${xau ? fmt(xau * 25500 / OZ_G * 37.5 / 1e6, 1) + ' triệu' : '—'}</div>
+      <div class="gold-item-vnd">1 lượng = 37.5g (chuẩn VN)</div>
+    </div>
+    <div class="gold-item">
+      <div class="gold-item-label">Quy đổi / chỉ (3.75g)</div>
+      <div class="gold-item-price">${xau ? fmt(xau * 25500 / OZ_G * 3.75 / 1e6, 2) + ' triệu' : '—'}</div>
+      <div class="gold-item-vnd">1 chỉ = 3.75g · tỷ giá 25,500</div>
+    </div>
+  `
+  if (flashUp !== undefined) flashCell(document.getElementById('gold-oz'), flashUp)
+}
+
 async function loadGold() {
   try {
     const cgData = await cgFetch(`${CG}/simple/price?ids=pax-gold,tether-gold&vs_currencies=usd&include_24hr_change=true`, 60000)
-    const xau = cgData['pax-gold']?.usd ?? cgData['tether-gold']?.usd
-    const xauChange = cgData['pax-gold']?.usd_24h_change ?? cgData['tether-gold']?.usd_24h_change ?? 0
-    const OZ = 31.1035  // 1 troy oz = 31.1035 g
-
-    const now = new Date()
-    document.getElementById('gold-time').textContent = `Cập nhật: ${now.toLocaleTimeString('vi-VN')}`
-    const chBadge = (v) => v == null ? '' : `<span style="font-size:0.72rem;color:${v>=0?'var(--green)':'var(--red)'}">${arrowChange(v)} ${Math.abs(v).toFixed(2)}%</span>`
-    document.getElementById('gold-grid').innerHTML = `
-      <div class="gold-item">
-        <div class="gold-item-label">Vàng thế giới (XAU)</div>
-        <div class="gold-item-price">$${fmt(xau)}/oz</div>
-        <div class="gold-item-vnd">${xau ? fmtVND(xau) : '—'}/oz</div>
-        <div class="gold-item-change">${chBadge(xauChange)}</div>
-      </div>
-      <div class="gold-item">
-        <div class="gold-item-label">Vàng / gram</div>
-        <div class="gold-item-price">$${xau ? fmt(xau / OZ) : '—'}/g</div>
-        <div class="gold-item-vnd">${xau ? fmtVND(xau / OZ) : '—'}/g</div>
-      </div>
-      <div class="gold-item">
-        <div class="gold-item-label">Quy đổi / lượng (37.5g)</div>
-        <div class="gold-item-price">${xau ? fmt(xau * 25500 / OZ * 37.5 / 1e6, 1) + ' triệu' : '—'}</div>
-        <div class="gold-item-vnd">1 lượng = 37.5g (chuẩn VN)</div>
-      </div>
-      <div class="gold-item">
-        <div class="gold-item-label">Quy đổi / chỉ (3.75g)</div>
-        <div class="gold-item-price">${xau ? fmt(xau * 25500 / OZ * 3.75 / 1e6, 2) + ' triệu' : '—'}</div>
-        <div class="gold-item-vnd">1 chỉ = 3.75g · tỷ giá 25,500</div>
-      </div>
-    `
+    _goldXau = cgData['pax-gold']?.usd ?? cgData['tether-gold']?.usd ?? _goldXau
+    _goldChange = cgData['pax-gold']?.usd_24h_change ?? cgData['tether-gold']?.usd_24h_change ?? _goldChange
+    renderGold()
   } catch(e) {
-    document.getElementById('gold-grid').innerHTML = `<div class="error-msg" style="grid-column:1/-1">Không tải được giá vàng.</div>`
+    if (_goldXau == null) document.getElementById('gold-grid').innerHTML = `<div class="error-msg" style="grid-column:1/-1">Đang tải giá vàng...</div>`
     console.warn('Gold error:', e)
   }
 }
