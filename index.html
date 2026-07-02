@@ -122,8 +122,11 @@
     @media (min-width: 1024px) {
       main { grid-template-columns: 1fr 340px; }
     }
-    .col-left { display: flex; flex-direction: column; gap: 24px; }
-    .col-right { display: flex; flex-direction: column; gap: 24px; }
+    /* min-width:0 để các cột co lại được, cho phép bảng cuộn ngang trong khung thay vì nới rộng cả trang */
+    .col-left { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+    .col-right { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+    main > * { min-width: 0; }
+    .crypto-table-wrap { min-width: 0; }
 
     /* SECTION TITLE */
     .section-title {
