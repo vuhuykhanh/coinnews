@@ -423,6 +423,10 @@
     @media (max-width: 560px) {
       /* Bỏ dòng chạy giá coin */
       .ticker-wrap { display: none; }
+      /* Tiêu đề bảng + tab xuống dòng, không bị chen/cắt chữ */
+      .table-header { flex-direction: column; align-items: stretch; gap: 10px; }
+      .table-header .table-tabs { width: 100%; }
+      .table-header .tab-btn { flex: 1; text-align: center; }
       /* Sắp xếp lại: Top Coin lên đầu, rồi đến tâm lý thị trường */
       .col-left { gap: 16px; }
       .crypto-table-wrap { order: -2; }
