@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CryptoVN — Theo dõi thị trường</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --surface: #111827;
+      --card: #1a2235;
+      --card2: #1e2a3a;
+      --border: #2a3a52;
+      --accent: #3b82f6;
+      --accent2: #8b5cf6;
+      --green: #10b981;
+      --red: #ef4444;
+      --gold: #f59e0b;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --dim: #64748b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+    .logo-icon { font-size: 1.6rem; }
+    .logo span { background: linear-gradient(90deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: var(--green);
+      font-weight: 600;
+    }
+    .live-dot {
+      width: 8px; height: 8px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.3); }
+    }
+    #last-updated { font-size: 0.75rem; color: var(--dim); }
+
+    /* TICKER SCROLL */
+    .ticker-wrap {
+      background: #0d1424;
+      border-bottom: 1px solid var(--border);
+      overflow: hidden;
+      height: 36px;
+      display: flex;
+      align-items: center;
+    }
+    .ticker {
+      display: flex;
+      gap: 0;
+      animation: scroll-left 40s linear infinite;
+      white-space: nowrap;
+    }
+    .ticker:hover { animation-play-state: paused; }
+    @keyframes scroll-left {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .ticker-item {
+      padding: 0 24px;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-right: 1px solid var(--border);
+    }
+    .ticker-symbol { color: var(--muted); font-weight: 600; }
+    .ticker-price { color: var(--text); }
+    .ticker-change.pos { color: var(--green); }
+    .ticker-change.neg { color: var(--red); }
+
+    /* MAIN LAYOUT */
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px 16px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+    @media (min-width: 1024px) {
+      main { grid-template-columns: 1fr 340px; }
+    }
+    .col-left { display: flex; flex-direction: column; gap: 24px; }
+    .col-right { display: flex; flex-direction: column; gap: 24px; }
+
+    /* SECTION TITLE */
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title::before {
+      content: '';
+      display: block;
+      width: 3px; height: 18px;
+      background: linear-gradient(180deg, var(--accent), var(--accent2));
+      border-radius: 2px;
+    }
+
+    /* MARKET OVERVIEW CARDS */
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .overview-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .overview-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+    .ov-label { font-size: 0.75rem; color: var(--dim); margin-bottom: 6px; }
+    .ov-value { font-size: 1.4rem; font-weight: 700; }
+    .ov-sub { font-size: 0.8rem; margin-top: 4px; }
+    .ov-sub.pos { color: var(--green); }
+    .ov-sub.neg { color: var(--red); }
+    .ov-sub.neu { color: var(--gold); }
+
+    /* CRYPTO TABLE */
+    .crypto-table-wrap {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .table-header {
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+    .table-tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 4px;
+    }
+    .tab-btn {
+      padding: 5px 14px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tab-btn.active { background: var(--accent); color: white; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      padding: 10px 16px;
+      text-align: right;
+      font-size: 0.72rem;
+      color: var(--dim);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: #0f1624;
+      cursor: pointer;
+      user-select: none;
+    }
+    thead th:first-child { text-align: left; }
+    thead th:hover { color: var(--text); }
+    tbody tr {
+      border-top: 1px solid #1e2a3a;
+      transition: background 0.15s;
+      cursor: pointer;
+    }
+    tbody tr:hover { background: #1e2d44; }
+    tbody td {
+      padding: 12px 16px;
+      font-size: 0.875rem;
+      text-align: right;
+    }
+    tbody td:first-child { text-align: left; }
+    .coin-info { display: flex; align-items: center; gap: 10px; }
+    .coin-rank { font-size: 0.75rem; color: var(--dim); width: 24px; }
+    .coin-icon { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+    .coin-icon-placeholder {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700;
+    }
+    .coin-name-wrap {}
+    .coin-name { font-weight: 600; font-size: 0.875rem; }
+    .coin-symbol { font-size: 0.72rem; color: var(--dim); margin-top: 1px; }
+    .price-cell { font-weight: 600; }
+    .change-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .change-badge.pos { background: rgba(16,185,129,0.15); color: var(--green); }
+    .change-badge.neg { background: rgba(239,68,68,0.15); color: var(--red); }
+    .sparkline-cell { width: 80px; }
+    .volume-cell { color: var(--muted); }
+    .cap-cell { color: var(--muted); }
+
+    /* GOLD SECTION */
+    .gold-wrap {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .gold-header {
+      padding: 16px 20px;
+      background: linear-gradient(135deg, rgba(245,158,11,0.1), rgba(245,158,11,0.05));
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .gold-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+    }
+    .gold-item {
+      background: var(--card);
+      padding: 16px;
+    }
+    .gold-item-label { font-size: 0.72rem; color: var(--dim); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; }
+    .gold-item-price { font-size: 1.1rem; font-weight: 700; color: var(--gold); }
+    .gold-item-vnd { font-size: 0.75rem; color: var(--muted); margin-top: 3px; }
+    .gold-item-change { font-size: 0.78rem; margin-top: 4px; }
+
+    /* FEAR & GREED */
+    .fng-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+    }
+    .fng-meter {
+      position: relative;
+      width: 160px;
+      height: 80px;
+      margin: 12px auto;
+    }
+    .fng-meter svg { width: 100%; height: auto; }
+    .fng-value-wrap {
+      position: absolute;
+      bottom: 0; left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+    }
+    .fng-number { font-size: 2rem; font-weight: 800; }
+    .fng-label-text { font-size: 0.75rem; color: var(--muted); }
+
+    /* NEWS */
+    .news-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .news-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .news-list { }
+    .news-item {
+      padding: 14px 20px;
+      border-top: 1px solid #1e2a3a;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: start;
+      text-decoration: none;
+      color: inherit;
+      transition: background 0.15s;
+    }
+    .news-item:first-child { border-top: none; }
+    .news-item:hover { background: #1e2d44; }
+    .news-title {
+      font-size: 0.85rem;
+      font-weight: 500;
+      line-height: 1.4;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .news-meta { font-size: 0.72rem; color: var(--dim); }
+    .news-sentiment {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      white-space: nowrap;
+      align-self: flex-start;
+    }
+    .news-sentiment.bull { background: rgba(16,185,129,0.15); color: var(--green); }
+    .news-sentiment.bear { background: rgba(239,68,68,0.15); color: var(--red); }
+    .news-sentiment.neu { background: rgba(148,163,184,0.1); color: var(--muted); }
+
+    /* CHART */
+    .chart-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .chart-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      flex-wrap: wrap;
+    }
+    .chart-coin-select {
+      display: flex; gap: 6px; flex-wrap: wrap;
+    }
+    .chart-btn {
+      padding: 5px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .chart-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+    .chart-body { padding: 16px; height: 260px; position: relative; }
+    .chart-body canvas { max-height: 228px; }
+
+    /* LOADING */
+    .skeleton {
+      background: linear-gradient(90deg, var(--card) 25%, var(--card2) 50%, var(--card) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 6px;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .skeleton-row { height: 44px; margin: 1px 0; }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--dim); }
+
+    /* ERROR / EMPTY */
+    .error-msg {
+      padding: 24px;
+      text-align: center;
+      color: var(--dim);
+      font-size: 0.85rem;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 640px) {
+      .cap-cell, .volume-cell { display: none; }
+      .sparkline-cell { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <span class="logo-icon">📈</span>
+    <span>CryptoVN</span>
+  </div>
+  <div class="header-right">
+    <div class="live-badge">
+      <div class="live-dot"></div>
+      LIVE
+    </div>
+    <span id="last-updated">Đang cập nhật...</span>
+  </div>
+</header>
+
+<!-- TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker" id="ticker">
+    <span class="ticker-item"><span class="ticker-symbol">—</span></span>
+  </div>
+</div>
+
+<!-- MAIN -->
+<main>
+  <div class="col-left">
+
+    <!-- OVERVIEW -->
+    <div>
+      <div class="section-title">Tổng quan thị trường</div>
+      <div class="overview-grid" id="overview-grid">
+        <div class="overview-card">
+          <div class="ov-label">Tổng vốn hóa</div>
+          <div class="ov-value skeleton" style="height:28px;width:70%"></div>
+          <div class="ov-sub">&nbsp;</div>
+        </div>
+        <div class="overview-card">
+          <div class="ov-label">Volume 24h</div>
+          <div class="ov-value skeleton" style="height:28px;width:70%"></div>
+          <div class="ov-sub">&nbsp;</div>
+        </div>
+        <div class="overview-card">
+          <div class="ov-label">Dominance BTC</div>
+          <div class="ov-value skeleton" style="height:28px;width:70%"></div>
+          <div class="ov-sub">&nbsp;</div>
+        </div>
+        <div class="overview-card">
+          <div class="ov-label">Số coin tăng / giảm</div>
+          <div class="ov-value skeleton" style="height:28px;width:70%"></div>
+          <div class="ov-sub">&nbsp;</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRICE CHART -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="section-title" style="margin:0">Biểu đồ giá</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+          <div class="chart-coin-select" id="chart-coin-btns">
+            <button class="chart-btn active" data-coin="bitcoin">BTC</button>
+            <button class="chart-btn" data-coin="ethereum">ETH</button>
+            <button class="chart-btn" data-coin="binancecoin">BNB</button>
+            <button class="chart-btn" data-coin="solana">SOL</button>
+            <button class="chart-btn" data-coin="ripple">XRP</button>
+          </div>
+          <div class="chart-coin-select" id="chart-range-btns">
+            <button class="chart-btn" data-days="1">24h</button>
+            <button class="chart-btn active" data-days="7">7d</button>
+            <button class="chart-btn" data-days="30">30d</button>
+          </div>
+        </div>
+      </div>
+      <div class="chart-body">
+        <canvas id="priceChart"></canvas>
+      </div>
+    </div>
+
+    <!-- CRYPTO TABLE -->
+    <div class="crypto-table-wrap">
+      <div class="table-header">
+        <div class="section-title" style="margin:0">Top Coin theo vốn hóa</div>
+        <div class="table-tabs">
+          <button class="tab-btn active" data-filter="all">Tất cả</button>
+          <button class="tab-btn" data-filter="gainers">Tăng mạnh</button>
+          <button class="tab-btn" data-filter="losers">Giảm mạnh</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th data-sort="rank">#&nbsp;Coin</th>
+              <th data-sort="price">Giá (USD)</th>
+              <th data-sort="change24h">24h %</th>
+              <th data-sort="change7d">7d %</th>
+              <th class="sparkline-cell">7d chart</th>
+              <th class="volume-cell" data-sort="volume">Volume 24h</th>
+              <th class="cap-cell" data-sort="cap">Vốn hóa</th>
+            </tr>
+          </thead>
+          <tbody id="coin-table-body">
+            <tr><td colspan="7"><div class="skeleton skeleton-row"></div></td></tr>
+            <tr><td colspan="7"><div class="skeleton skeleton-row"></div></td></tr>
+            <tr><td colspan="7"><div class="skeleton skeleton-row"></div></td></tr>
+            <tr><td colspan="7"><div class="skeleton skeleton-row"></div></td></tr>
+            <tr><td colspan="7"><div class="skeleton skeleton-row"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+  <div class="col-right">
+
+    <!-- FEAR & GREED -->
+    <div class="fng-card">
+      <div class="section-title" style="justify-content:center">Chỉ số Tâm lý thị trường</div>
+      <div class="fng-meter">
+        <svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="grd" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#ef4444"/>
+              <stop offset="25%" stop-color="#f97316"/>
+              <stop offset="50%" stop-color="#eab308"/>
+              <stop offset="75%" stop-color="#84cc16"/>
+              <stop offset="100%" stop-color="#10b981"/>
+            </linearGradient>
+          </defs>
+          <path d="M 10 90 A 90 90 0 0 1 190 90" fill="none" stroke="#1e2a3a" stroke-width="16" stroke-linecap="round"/>
+          <path id="fng-arc" d="M 10 90 A 90 90 0 0 1 190 90" fill="none" stroke="url(#grd)" stroke-width="16" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283"/>
+          <line id="fng-needle" x1="100" y1="90" x2="100" y2="18" stroke="white" stroke-width="3" stroke-linecap="round" transform="rotate(0, 100, 90)"/>
+          <circle cx="100" cy="90" r="5" fill="white"/>
+        </svg>
+        <div class="fng-value-wrap">
+          <div class="fng-number" id="fng-number">—</div>
+          <div class="fng-label-text" id="fng-label">Đang tải...</div>
+        </div>
+      </div>
+      <p style="font-size:0.72rem;color:var(--dim);margin-top:12px">0 = Sợ hãi cực độ · 100 = Tham lam cực độ</p>
+    </div>
+
+    <!-- GOLD -->
+    <div class="gold-wrap">
+      <div class="gold-header">
+        <div class="section-title" style="margin:0">💰 Giá vàng hôm nay</div>
+        <span style="font-size:0.72rem;color:var(--dim)" id="gold-time">—</span>
+      </div>
+      <div class="gold-grid" id="gold-grid">
+        <div class="gold-item">
+          <div class="gold-item-label">Vàng (XAU/USD)</div>
+          <div class="gold-item-price skeleton" style="height:22px;width:80%"></div>
+          <div class="gold-item-vnd">&nbsp;</div>
+        </div>
+        <div class="gold-item">
+          <div class="gold-item-label">Bạch kim (XPT/USD)</div>
+          <div class="gold-item-price skeleton" style="height:22px;width:80%"></div>
+          <div class="gold-item-vnd">&nbsp;</div>
+        </div>
+        <div class="gold-item">
+          <div class="gold-item-label">Bạc (XAG/USD)</div>
+          <div class="gold-item-price skeleton" style="height:22px;width:80%"></div>
+          <div class="gold-item-vnd">&nbsp;</div>
+        </div>
+        <div class="gold-item">
+          <div class="gold-item-label">Palladium (XPD)</div>
+          <div class="gold-item-price skeleton" style="height:22px;width:80%"></div>
+          <div class="gold-item-vnd">&nbsp;</div>
+        </div>
+      </div>
+      <div style="padding:10px 16px;font-size:0.7rem;color:var(--dim);text-align:center">
+        Tỷ giá USD/VND ≈ 25,500 · Giá quốc tế
+      </div>
+    </div>
+
+    <!-- NEWS -->
+    <div class="news-card">
+      <div class="news-header">
+        <div class="section-title" style="margin:0">📰 Tin tức thị trường</div>
+        <span style="font-size:0.72rem;color:var(--dim)">Dịch tự động 🇻🇳</span>
+      </div>
+      <div class="news-list" id="news-list">
+        <div class="error-msg">Đang tải tin tức...</div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+// ========== UTILS ==========
+const fmt = (n, d=2) => n == null ? '—' : new Intl.NumberFormat('en-US', {maximumFractionDigits:d, minimumFractionDigits:d}).format(n)
+const fmtUSD = (n) => n == null ? '—' : '$' + (n >= 1e9 ? (n/1e9).toFixed(2)+'B' : n >= 1e6 ? (n/1e6).toFixed(2)+'M' : fmt(n))
+const fmtPrice = (n) => {
+  if (n == null) return '—'
+  if (n >= 1000) return '$' + fmt(n, 0)
+  if (n >= 1) return '$' + fmt(n, 2)
+  if (n >= 0.01) return '$' + fmt(n, 4)
+  return '$' + fmt(n, 6)
+}
+const fmtVND = (usd) => {
+  const vnd = usd * 25500
+  if (vnd >= 1e9) return (vnd/1e9).toFixed(1) + ' tỷ VND'
+  if (vnd >= 1e6) return (vnd/1e6).toFixed(0) + ' triệu VND'
+  return Math.round(vnd).toLocaleString('vi') + ' VND'
+}
+const clsChange = (v) => v >= 0 ? 'pos' : 'neg'
+const arrowChange = (v) => v >= 0 ? '▲' : '▼'
+const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+
+// ========== STATE ==========
+let allCoins = []
+let currentFilter = 'all'
+let sortKey = 'rank'
+let sortAsc = true
+let chartCoin = 'bitcoin'
+let chartDays = 7
+let priceChart = null
+
+// ========== API ==========
+const CG = 'https://api.coingecko.com/api/v3'
+const FNG_API = 'https://api.alternative.me/fng/?limit=1'
+
+const _cache = {}
+// Serialize all CoinGecko requests to avoid rate limiting
+let _cgQueue = Promise.resolve()
+function cgFetch(url, ttlMs = 30000) {
+  const now = Date.now()
+  if (_cache[url] && now - _cache[url].t < ttlMs) return Promise.resolve(_cache[url].d)
+  const req = _cgQueue.then(() => sleep(350)).then(async () => {
+    for (let retry = 0; retry < 3; retry++) {
+      const res = await fetch(url)
+      if (res.status === 429) { await sleep(6000 * (retry + 1)); continue }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      _cache[url] = { t: Date.now(), d: data }
+      return data
+    }
+    throw new Error('Rate limited after retries')
+  })
+  _cgQueue = req.catch(() => {}) // keep queue moving on error
+  return req
+}
+async function fetchJSON(url, ttlMs = 30000) {
+  const now = Date.now()
+  if (_cache[url] && now - _cache[url].t < ttlMs) return _cache[url].d
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const data = await res.json()
+  _cache[url] = { t: now, d: data }
+  return data
+}
+
+// ========== GLOBAL MARKET ==========
+// Populated from coins/markets data to avoid CoinGecko /global throttling
+function renderOverview() {
+  if (!allCoins.length) return
+  const btc = allCoins.find(c => c.id === 'bitcoin')
+  const eth = allCoins.find(c => c.id === 'ethereum')
+  const totalCap = allCoins.reduce((s, c) => s + (c.market_cap ?? 0), 0)
+  const totalVol = allCoins.reduce((s, c) => s + (c.total_volume ?? 0), 0)
+  const btcCap = btc?.market_cap ?? 0
+  const ethCap = eth?.market_cap ?? 0
+  const btcDom = totalCap ? (btcCap / totalCap * 100).toFixed(1) : '—'
+  const ethDom = totalCap ? (ethCap / totalCap * 100).toFixed(1) : '—'
+  const btcChange = btc?.price_change_percentage_24h ?? 0
+  const gainers = allCoins.filter(c => (c.price_change_percentage_24h ?? 0) > 0).length
+  const losers = allCoins.filter(c => (c.price_change_percentage_24h ?? 0) < 0).length
+
+  document.getElementById('overview-grid').innerHTML = `
+    <div class="overview-card">
+      <div class="ov-label">Vốn hóa Top 50</div>
+      <div class="ov-value">${fmtUSD(totalCap)}</div>
+      <div class="ov-sub ${clsChange(btcChange)}">${arrowChange(btcChange)} BTC ${Math.abs(btcChange).toFixed(2)}% (24h)</div>
+    </div>
+    <div class="overview-card">
+      <div class="ov-label">Volume 24h Top 50</div>
+      <div class="ov-value">${fmtUSD(totalVol)}</div>
+      <div class="ov-sub neu">Vol/Cap: ${totalCap ? (totalVol/totalCap*100).toFixed(1) : '—'}%</div>
+    </div>
+    <div class="overview-card">
+      <div class="ov-label">Dominance BTC</div>
+      <div class="ov-value">${btcDom}%</div>
+      <div class="ov-sub neu">ETH: ${ethDom}%</div>
+    </div>
+    <div class="overview-card">
+      <div class="ov-label">Tăng / Giảm hôm nay</div>
+      <div class="ov-value" style="color:var(--green)">${gainers} <span style="color:var(--dim);font-size:1rem">/</span> <span style="color:var(--red)">${losers}</span></div>
+      <div class="ov-sub neu">trong Top 50 coins</div>
+    </div>
+  `
+}
+async function loadGlobalMarket() { renderOverview() }
+
+// ========== COINS ==========
+async function loadCoins() {
+  try {
+    const coins = await cgFetch(`${CG}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=true&price_change_percentage=24h,7d`, 15000)
+    allCoins = coins
+    renderTable()
+    renderTicker(coins.slice(0, 20))
+    renderOverview()
+  } catch(e) {
+    document.getElementById('coin-table-body').innerHTML = `<tr><td colspan="7"><div class="error-msg">Không tải được dữ liệu. Vui lòng F5 lại trang.</div></td></tr>`
+    console.warn('Coins error:', e)
+  }
+}
+
+function renderTable() {
+  let coins = [...allCoins]
+  if (currentFilter === 'gainers') coins = coins.filter(c => c.price_change_percentage_24h > 0).sort((a,b) => b.price_change_percentage_24h - a.price_change_percentage_24h)
+  else if (currentFilter === 'losers') coins = coins.filter(c => c.price_change_percentage_24h < 0).sort((a,b) => a.price_change_percentage_24h - b.price_change_percentage_24h)
+  else {
+    coins.sort((a,b) => {
+      let va, vb
+      if (sortKey === 'rank') { va = a.market_cap_rank; vb = b.market_cap_rank }
+      else if (sortKey === 'price') { va = a.current_price; vb = b.current_price }
+      else if (sortKey === 'change24h') { va = a.price_change_percentage_24h; vb = b.price_change_percentage_24h }
+      else if (sortKey === 'change7d') { va = a.price_change_percentage_7d_in_currency; vb = b.price_change_percentage_7d_in_currency }
+      else if (sortKey === 'volume') { va = a.total_volume; vb = b.total_volume }
+      else if (sortKey === 'cap') { va = a.market_cap; vb = b.market_cap }
+      else { va = a.market_cap_rank; vb = b.market_cap_rank }
+      return sortAsc ? va - vb : vb - va
+    })
+  }
+
+  const tbody = document.getElementById('coin-table-body')
+  tbody.innerHTML = coins.slice(0, 30).map(c => {
+    const ch24 = c.price_change_percentage_24h
+    const ch7 = c.price_change_percentage_7d_in_currency
+    const spark = c.sparkline_in_7d?.price ?? []
+    const sparkId = `spark-${c.id}`
+    return `
+    <tr onclick="selectChartCoin('${c.id}')">
+      <td>
+        <div class="coin-info">
+          <span class="coin-rank">${c.market_cap_rank}</span>
+          <img class="coin-icon" src="${c.image}" alt="${c.symbol}" loading="lazy" onerror="this.style.display='none'">
+          <div class="coin-name-wrap">
+            <div class="coin-name">${c.name}</div>
+            <div class="coin-symbol">${c.symbol.toUpperCase()}</div>
+          </div>
+        </div>
+      </td>
+      <td class="price-cell">${fmtPrice(c.current_price)}</td>
+      <td><span class="change-badge ${clsChange(ch24)}">${arrowChange(ch24)} ${Math.abs(ch24 ?? 0).toFixed(2)}%</span></td>
+      <td><span class="change-badge ${clsChange(ch7)}">${arrowChange(ch7)} ${Math.abs(ch7 ?? 0).toFixed(2)}%</span></td>
+      <td class="sparkline-cell"><canvas id="${sparkId}" width="80" height="32"></canvas></td>
+      <td class="volume-cell">${fmtUSD(c.total_volume)}</td>
+      <td class="cap-cell">${fmtUSD(c.market_cap)}</td>
+    </tr>`
+  }).join('')
+
+  // draw sparklines
+  coins.slice(0, 30).forEach(c => {
+    const spark = c.sparkline_in_7d?.price ?? []
+    if (!spark.length) return
+    const canvas = document.getElementById(`spark-${c.id}`)
+    if (!canvas) return
+    drawSparkline(canvas, spark, c.price_change_percentage_7d_in_currency >= 0)
+  })
+}
+
+function drawSparkline(canvas, data, isUp) {
+  const ctx = canvas.getContext('2d')
+  const w = canvas.width, h = canvas.height
+  const min = Math.min(...data), max = Math.max(...data)
+  const range = max - min || 1
+  ctx.clearRect(0, 0, w, h)
+  ctx.beginPath()
+  data.forEach((v, i) => {
+    const x = (i / (data.length - 1)) * w
+    const y = h - ((v - min) / range) * (h - 4) - 2
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+  })
+  ctx.strokeStyle = isUp ? '#10b981' : '#ef4444'
+  ctx.lineWidth = 1.5
+  ctx.stroke()
+}
+
+// ========== TICKER ==========
+function renderTicker(coins) {
+  const items = coins.map(c => {
+    const ch = c.price_change_percentage_24h
+    return `<span class="ticker-item">
+      <span class="ticker-symbol">${c.symbol.toUpperCase()}</span>
+      <span class="ticker-price">${fmtPrice(c.current_price)}</span>
+      <span class="ticker-change ${clsChange(ch)}">${arrowChange(ch)} ${Math.abs(ch).toFixed(2)}%</span>
+    </span>`
+  }).join('')
+  const ticker = document.getElementById('ticker')
+  ticker.innerHTML = items + items // duplicate for seamless loop
+}
+
+// ========== CHART ==========
+async function loadChart(coin, days) {
+  try {
+    const data = await cgFetch(`${CG}/coins/${coin}/market_chart?vs_currency=usd&days=${days}`, 85000)
+    const prices = data.prices
+    const labels = prices.map(p => {
+      const d = new Date(p[0])
+      if (days <= 1) return d.toLocaleTimeString('vi-VN', {hour:'2-digit',minute:'2-digit'})
+      return d.toLocaleDateString('vi-VN', {day:'2-digit',month:'2-digit'})
+    })
+    const values = prices.map(p => p[1])
+    const isUp = values[values.length-1] >= values[0]
+    const color = isUp ? '#10b981' : '#ef4444'
+
+    const ctx = document.getElementById('priceChart').getContext('2d')
+    if (priceChart) priceChart.destroy()
+
+    const gradient = ctx.createLinearGradient(0, 0, 0, 228)
+    gradient.addColorStop(0, isUp ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)')
+    gradient.addColorStop(1, 'rgba(0,0,0,0)')
+
+    priceChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          borderColor: color,
+          backgroundColor: gradient,
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: true,
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { intersect: false, mode: 'index' },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1a2235',
+            borderColor: '#2a3a52',
+            borderWidth: 1,
+            titleColor: '#94a3b8',
+            bodyColor: '#f1f5f9',
+            callbacks: {
+              label: ctx => fmtPrice(ctx.parsed.y)
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            ticks: { color: '#64748b', maxTicksLimit: 8, font: { size: 11 } },
+            border: { color: '#2a3a52' }
+          },
+          y: {
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            ticks: { color: '#64748b', font: { size: 11 }, callback: v => fmtPrice(v) },
+            border: { color: '#2a3a52' },
+            position: 'right'
+          }
+        }
+      }
+    })
+  } catch(e) {
+    console.warn('Chart error:', e)
+  }
+}
+
+function selectChartCoin(coinId) {
+  chartCoin = coinId
+  document.querySelectorAll('#chart-coin-btns .chart-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.coin === coinId)
+  })
+  loadChart(chartCoin, chartDays)
+}
+
+// ========== FEAR & GREED ==========
+async function loadFearGreed() {
+  try {
+    const data = await fetchJSON(FNG_API, 300000)
+    const val = parseInt(data.data[0].value)
+    const cls = data.data[0].value_classification
+    const clsMap = { 'Extreme Fear':'#ef4444', 'Fear':'#f97316', 'Neutral':'#eab308', 'Greed':'#84cc16', 'Extreme Greed':'#10b981' }
+    const clsVI = { 'Extreme Fear':'Sợ hãi cực độ', 'Fear':'Sợ hãi', 'Neutral':'Trung lập', 'Greed':'Tham lam', 'Extreme Greed':'Tham lam cực độ' }
+    const color = clsMap[cls] || '#eab308'
+    const arc = document.getElementById('fng-arc')
+    const needle = document.getElementById('fng-needle')
+    const pct = val / 100
+    const totalLen = 283
+    arc.style.stroke = color
+    arc.style.strokeDashoffset = totalLen * (1 - pct)
+    needle.setAttribute('transform', `rotate(${-90 + pct * 180}, 100, 90)`)
+    document.getElementById('fng-number').textContent = val
+    document.getElementById('fng-number').style.color = color
+    document.getElementById('fng-label').textContent = clsVI[cls] ?? cls
+  } catch(e) {
+    document.getElementById('fng-label').textContent = 'Không tải được dữ liệu'
+    console.warn('FNG error:', e)
+  }
+}
+
+// ========== GOLD ==========
+// PAXG (Pax Gold token) = 1 troy oz XAU — nguồn giá vàng quốc tế qua CoinGecko
+async function loadGold() {
+  try {
+    const cgData = await cgFetch(`${CG}/simple/price?ids=pax-gold,tether-gold&vs_currencies=usd&include_24hr_change=true`, 60000)
+    const xau = cgData['pax-gold']?.usd ?? cgData['tether-gold']?.usd
+    const xauChange = cgData['pax-gold']?.usd_24h_change ?? cgData['tether-gold']?.usd_24h_change ?? 0
+    const OZ = 31.1035  // 1 troy oz = 31.1035 g
+
+    const now = new Date()
+    document.getElementById('gold-time').textContent = `Cập nhật: ${now.toLocaleTimeString('vi-VN')}`
+    const chBadge = (v) => v == null ? '' : `<span style="font-size:0.72rem;color:${v>=0?'var(--green)':'var(--red)'}">${arrowChange(v)} ${Math.abs(v).toFixed(2)}%</span>`
+    document.getElementById('gold-grid').innerHTML = `
+      <div class="gold-item">
+        <div class="gold-item-label">Vàng thế giới (XAU)</div>
+        <div class="gold-item-price">$${fmt(xau)}/oz</div>
+        <div class="gold-item-vnd">${xau ? fmtVND(xau) : '—'}/oz</div>
+        <div class="gold-item-change">${chBadge(xauChange)}</div>
+      </div>
+      <div class="gold-item">
+        <div class="gold-item-label">Vàng / gram</div>
+        <div class="gold-item-price">$${xau ? fmt(xau / OZ) : '—'}/g</div>
+        <div class="gold-item-vnd">${xau ? fmtVND(xau / OZ) : '—'}/g</div>
+      </div>
+      <div class="gold-item">
+        <div class="gold-item-label">Quy đổi / lượng (37.5g)</div>
+        <div class="gold-item-price">${xau ? fmt(xau * 25500 / OZ * 37.5 / 1e6, 1) + ' triệu' : '—'}</div>
+        <div class="gold-item-vnd">1 lượng = 37.5g (chuẩn VN)</div>
+      </div>
+      <div class="gold-item">
+        <div class="gold-item-label">Quy đổi / chỉ (3.75g)</div>
+        <div class="gold-item-price">${xau ? fmt(xau * 25500 / OZ * 3.75 / 1e6, 2) + ' triệu' : '—'}</div>
+        <div class="gold-item-vnd">1 chỉ = 3.75g · tỷ giá 25,500</div>
+      </div>
+    `
+  } catch(e) {
+    document.getElementById('gold-grid').innerHTML = `<div class="error-msg" style="grid-column:1/-1">Không tải được giá vàng.</div>`
+    console.warn('Gold error:', e)
+  }
+}
+
+// ========== NEWS ==========
+// Nguồn uy tín, cập nhật liên tục qua RSS -> rss2json (CORS-friendly)
+const NEWS_FEEDS = [
+  { url: 'https://cointelegraph.com/rss', source: 'CoinTelegraph' },
+  { url: 'https://www.coindesk.com/arc/outboundfeeds/rss/', source: 'CoinDesk' },
+  { url: 'https://decrypt.co/feed', source: 'Decrypt' },
+  { url: 'https://cryptoslate.com/feed/', source: 'CryptoSlate' },
+]
+const _translateCache = {}
+
+function newsSentiment(title) {
+  const bull = ['surge','rally','jump','rise','gain','gains','breakout','bullish','ath','record high','soar','soars','pump','rebound','recover','high','inflow','adopt','approval','buy','boost']
+  const bear = ['crash','fall','falls','dump','drop','drops','loss','losses','plunge','bearish','fear','sell-off','ban','banned','hack','hacked','fraud','collapse','decline','outflow','liquidation','warning','lawsuit','sink','tumble']
+  const t = title.toLowerCase()
+  const b = bull.filter(k => t.includes(k)).length
+  const s = bear.filter(k => t.includes(k)).length
+  if (b > s) return 'bull'
+  if (s > b) return 'bear'
+  return 'neu'
+}
+
+// Dịch 1 tiêu đề sang tiếng Việt qua Google Translate (miễn phí), có cache
+async function translateVI(text) {
+  if (_translateCache[text]) return _translateCache[text]
+  try {
+    const r = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=' + encodeURIComponent(text))
+    const d = await r.json()
+    const vi = d[0].map(x => x[0]).join('')
+    _translateCache[text] = vi
+    return vi
+  } catch(_) {
+    return text // fallback giữ nguyên tiếng Anh nếu dịch lỗi
+  }
+}
+
+async function loadNews() {
+  const labelMap = { bull:'Tích cực', bear:'Tiêu cực', neu:'Trung lập' }
+  const nl = document.getElementById('news-list')
+  try {
+    // Lấy song song tất cả nguồn RSS
+    const feedResults = await Promise.all(NEWS_FEEDS.map(async f => {
+      try {
+        const d = await fetchJSON(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(f.url)}`, 120000)
+        if (d.status !== 'ok') return []
+        return (d.items ?? []).map(it => ({
+          title: it.title,
+          url: it.link,
+          source: f.source,
+          date: new Date(it.pubDate),
+        }))
+      } catch(_) { return [] }
+    }))
+
+    // Gộp, loại trùng, sắp xếp mới nhất
+    let items = feedResults.flat().filter(x => x.title && !isNaN(x.date))
+    const seen = new Set()
+    items = items.filter(x => { const k = x.title.slice(0,40); if (seen.has(k)) return false; seen.add(k); return true })
+    items.sort((a,b) => b.date - a.date)
+    items = items.slice(0, 15)
+    if (!items.length) throw new Error('empty')
+
+    // Dịch tất cả tiêu đề song song
+    const translated = await Promise.all(items.map(it => translateVI(it.title)))
+
+    nl.innerHTML = items.map((it, i) => {
+      const s = newsSentiment(it.title)
+      const ago = timeAgo(it.date)
+      return `<a class="news-item" href="${it.url}" target="_blank" rel="noopener">
+        <div>
+          <div class="news-title">${translated[i]}</div>
+          <div class="news-meta">${it.source} · ${ago}</div>
+        </div>
+        <span class="news-sentiment ${s}">${labelMap[s]}</span>
+      </a>`
+    }).join('')
+  } catch(e) {
+    nl.innerHTML = `<div class="error-msg">Không tải được tin tức lúc này. Thử lại sau ít phút.<br>
+      <a href="https://cointelegraph.com" target="_blank" style="color:var(--accent);text-decoration:none">CoinTelegraph</a> ·
+      <a href="https://coindesk.com" target="_blank" style="color:var(--accent);text-decoration:none">CoinDesk</a> ·
+      <a href="https://decrypt.co" target="_blank" style="color:var(--accent);text-decoration:none">Decrypt</a></div>`
+    console.warn('News error:', e)
+  }
+}
+
+function timeAgo(date) {
+  const secs = Math.floor((Date.now() - date) / 1000)
+  if (secs < 60) return 'vừa xong'
+  if (secs < 3600) return Math.floor(secs/60) + ' phút trước'
+  if (secs < 86400) return Math.floor(secs/3600) + ' giờ trước'
+  return Math.floor(secs/86400) + ' ngày trước'
+}
+
+// ========== EVENT HANDLERS ==========
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'))
+    btn.classList.add('active')
+    currentFilter = btn.dataset.filter
+    renderTable()
+  })
+})
+
+document.querySelectorAll('thead th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.sort
+    if (sortKey === key) sortAsc = !sortAsc
+    else { sortKey = key; sortAsc = key === 'rank' }
+    renderTable()
+  })
+})
+
+document.querySelectorAll('#chart-coin-btns .chart-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#chart-coin-btns .chart-btn').forEach(b => b.classList.remove('active'))
+    btn.classList.add('active')
+    chartCoin = btn.dataset.coin
+    loadChart(chartCoin, chartDays)
+  })
+})
+
+document.querySelectorAll('#chart-range-btns .chart-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#chart-range-btns .chart-btn').forEach(b => b.classList.remove('active'))
+    btn.classList.add('active')
+    chartDays = parseInt(btn.dataset.days)
+    loadChart(chartCoin, chartDays)
+  })
+})
+
+// ========== UPDATE TIMESTAMP ==========
+function updateTimestamp() {
+  document.getElementById('last-updated').textContent = 'Cập nhật: ' + new Date().toLocaleTimeString('vi-VN')
+}
+
+// ========== INIT & AUTO-REFRESH ==========
+async function init() {
+  // Stagger CoinGecko calls to avoid rate limiting
+  await Promise.all([loadGlobalMarket(), loadCoins(), loadFearGreed()])
+  await Promise.all([loadGold(), loadNews()])
+  await sleep(1500)
+  await loadChart(chartCoin, chartDays)
+  updateTimestamp()
+}
+
+// Fast refresh: prices, ticker, overview, gold — the real-time bits
+async function refresh() {
+  await loadCoins()   // also re-renders overview + ticker
+  loadFearGreed()
+  loadGold()
+  updateTimestamp()
+}
+
+init()
+// Giá coin + ticker + vàng: cập nhật mỗi 20 giây
+setInterval(refresh, 20000)
+// Biểu đồ giá: cập nhật mỗi 90 giây (dữ liệu nặng, tránh rate limit)
+setInterval(() => loadChart(chartCoin, chartDays), 90000)
+// Tin tức: cập nhật mỗi 2 phút (RSS từ các trang uy tín)
+setInterval(loadNews, 120000)
+</script>
+</body>
+</html>
