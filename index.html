@@ -590,7 +590,7 @@
         </div>
       </div>
       <div style="padding:10px 16px;font-size:0.7rem;color:var(--dim);text-align:center">
-        Tỷ giá USD/VND ≈ 25,500 · Giá quốc tế
+        Vàng thế giới: Binance (real-time) · Vàng trong nước: SJC.com.vn
       </div>
     </div>
 
@@ -1032,40 +1032,69 @@ async function loadFearGreed() {
 }
 
 // ========== GOLD ==========
-// PAXG (Pax Gold token) = 1 troy oz XAU. Giá ban đầu từ CoinGecko,
-// sau đó cập nhật real-time qua Binance (cặp PAXGUSDT) — xem applyLivePrices.
-const OZ_G = 31.1035  // 1 troy oz = 31.1035 g
-let _goldXau = null    // giá vàng /oz hiện tại
-let _goldChange = 0    // % thay đổi 24h
+// Vàng thế giới: PAXG (1 token = 1 oz XAU), real-time qua Binance.
+// Vàng trong nước: SJC.com.vn (chính thức) qua CORS proxy.
+const OZ_G = 31.1035   // 1 troy oz = 31.1035 g
+const LUONG_G = 37.5   // 1 lượng = 37.5 g (chuẩn VN)
+let _goldXau = null     // giá vàng thế giới /oz hiện tại (USD)
+let _goldChange = 0     // % thay đổi 24h
+let _sjcMieng = null    // { buy, sell } — nghìn đồng / lượng
+let _sjcNhan = null     // { buy, sell } — nghìn đồng / lượng
+let _sjcTime = null     // thời điểm SJC công bố
+
+// nghìn đồng -> "X triệu"
+const fmtTrieu = (nghin) => nghin == null ? '—' : (nghin / 1000).toLocaleString('vi-VN', {maximumFractionDigits:1}) + ' triệu'
 
 function renderGold(flashUp) {
   const xau = _goldXau
-  document.getElementById('gold-time').textContent = `Cập nhật: ${new Date().toLocaleTimeString('vi-VN')}`
+  // quy đổi vàng thế giới ra /lượng VN để so sánh
+  const worldLuong = xau ? xau * 25500 / OZ_G * LUONG_G / 1e6 : null  // triệu/lượng
   const chBadge = (v) => v == null ? '' : `<span style="font-size:0.72rem;color:${v>=0?'var(--green)':'var(--red)'}">${arrowChange(v)} ${Math.abs(v).toFixed(2)}%</span>`
+  const priceRow = (label, obj) => obj ? `
+      <div style="font-size:0.95rem;font-weight:700;color:var(--gold)">${fmtTrieu(obj.sell)}</div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-top:2px">Mua ${fmtTrieu(obj.buy)}</div>` : `<div style="font-size:0.85rem;color:var(--dim)">Đang tải...</div>`
+
+  document.getElementById('gold-time').textContent = _sjcTime ? `SJC: ${_sjcTime}` : `Cập nhật: ${new Date().toLocaleTimeString('vi-VN')}`
   document.getElementById('gold-grid').innerHTML = `
     <div class="gold-item">
-      <div class="gold-item-label">Vàng thế giới (XAU)</div>
+      <div class="gold-item-label">🌍 Vàng thế giới (XAU)</div>
       <div class="gold-item-price" id="gold-oz">$${fmt(xau)}/oz</div>
-      <div class="gold-item-vnd">${xau ? fmtVND(xau) : '—'}/oz</div>
-      <div class="gold-item-change">${chBadge(_goldChange)}</div>
+      <div class="gold-item-vnd">${worldLuong ? fmt(worldLuong,1)+' triệu/lượng (quy đổi)' : '—'}</div>
+      <div class="gold-item-change">${chBadge(_goldChange)} <span style="color:var(--dim)">· real-time</span></div>
     </div>
     <div class="gold-item">
-      <div class="gold-item-label">Vàng / gram</div>
-      <div class="gold-item-price">$${xau ? fmt(xau / OZ_G) : '—'}/g</div>
-      <div class="gold-item-vnd">${xau ? fmtVND(xau / OZ_G) : '—'}/g</div>
+      <div class="gold-item-label">🇻🇳 SJC miếng (bán ra)</div>
+      ${priceRow('SJC', _sjcMieng)}
     </div>
     <div class="gold-item">
-      <div class="gold-item-label">Quy đổi / lượng (37.5g)</div>
-      <div class="gold-item-price">${xau ? fmt(xau * 25500 / OZ_G * 37.5 / 1e6, 1) + ' triệu' : '—'}</div>
-      <div class="gold-item-vnd">1 lượng = 37.5g (chuẩn VN)</div>
+      <div class="gold-item-label">🇻🇳 Nhẫn SJC 99,99%</div>
+      ${priceRow('Nhẫn', _sjcNhan)}
     </div>
     <div class="gold-item">
-      <div class="gold-item-label">Quy đổi / chỉ (3.75g)</div>
-      <div class="gold-item-price">${xau ? fmt(xau * 25500 / OZ_G * 3.75 / 1e6, 2) + ' triệu' : '—'}</div>
-      <div class="gold-item-vnd">1 chỉ = 3.75g · tỷ giá 25,500</div>
+      <div class="gold-item-label">Chênh lệch trong nước</div>
+      <div class="gold-item-price" style="font-size:0.95rem">${(_sjcMieng && worldLuong) ? '+' + fmt(_sjcMieng.sell/1000 - worldLuong, 1) + ' triệu' : '—'}</div>
+      <div class="gold-item-vnd">SJC cao hơn giá thế giới</div>
     </div>
   `
   if (flashUp !== undefined) flashCell(document.getElementById('gold-oz'), flashUp)
+}
+
+// Lấy giá vàng SJC trong nước (nguồn chính thức sjc.com.vn qua CORS proxy)
+async function loadDomesticGold() {
+  try {
+    const proxied = 'https://corsproxy.io/?url=' + encodeURIComponent('https://sjc.com.vn/GoldPrice/Services/PriceService.ashx?method=GetSJCGoldPrice')
+    const d = await fetchJSON(proxied, 60000)
+    const rows = d.data ?? []
+    const num = (s) => s ? parseInt(String(s).replace(/[^0-9]/g, '')) : null   // "145,400" -> 145400 (nghìn)
+    const mieng = rows.find(r => /1L|10L|1KG/i.test(r.TypeName))
+    const nhan = rows.find(r => /nhẫn/i.test(r.TypeName) && /1 chỉ|5 chỉ/i.test(r.TypeName)) || rows.find(r => /nhẫn/i.test(r.TypeName))
+    if (mieng) _sjcMieng = { buy: num(mieng.Buy), sell: num(mieng.Sell) }
+    if (nhan) _sjcNhan = { buy: num(nhan.Buy), sell: num(nhan.Sell) }
+    _sjcTime = d.latestDate ?? _sjcTime
+    renderGold()
+  } catch(e) {
+    console.warn('SJC gold error:', e)
+  }
 }
 
 async function loadGold() {
@@ -1219,7 +1248,7 @@ async function init() {
   // Stagger CoinGecko calls to avoid rate limiting
   await Promise.all([loadGlobalMarket(), loadCoins(), loadFearGreed()])
   connectWebSocket()   // bật giá real-time (Binance) ngay khi có bảng coin
-  await Promise.all([loadGold(), loadNews()])
+  await Promise.all([loadGold(), loadDomesticGold(), loadNews()])
   await sleep(1500)
   await loadChart(chartCoin, chartDays)
   updateTimestamp()
@@ -1230,6 +1259,7 @@ async function refresh() {
   await loadCoins()   // also re-renders overview + ticker
   loadFearGreed()
   loadGold()
+  loadDomesticGold()
   updateTimestamp()
 }
 
