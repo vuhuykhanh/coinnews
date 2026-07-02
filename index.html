@@ -1266,11 +1266,11 @@ async function loadVNStock() {
       </div>
       <div class="gold-grid">
         ${mini('VN30', vn30)}
-        ${mini('HNX-INDEX', hnx)}
-      </div>
-      <div style="padding:11px 16px;text-align:center;border-top:1px solid var(--border)">
-        <span style="font-size:0.72rem;color:var(--dim)">Thanh khoản toàn thị trường</span>
-        <div style="font-size:1.05rem;font-weight:700;color:var(--gold);margin-top:2px">${fmtTy(totalVal)}</div>
+        <div class="gold-item">
+          <div class="gold-item-label">Thanh khoản</div>
+          <div class="gold-item-price" style="color:var(--gold);font-size:1.05rem">${fmtTy(totalVal)}</div>
+          <div class="gold-item-vnd">toàn thị trường</div>
+        </div>
       </div>
     `
   } catch(e) {
