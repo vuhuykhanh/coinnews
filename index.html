@@ -421,6 +421,12 @@
 
     /* Điện thoại */
     @media (max-width: 560px) {
+      /* Bỏ dòng chạy giá coin */
+      .ticker-wrap { display: none; }
+      /* Sắp xếp lại: Top Coin lên đầu, rồi đến tâm lý thị trường */
+      .col-left { gap: 16px; }
+      .crypto-table-wrap { order: -2; }
+      .fng-mobile-bar { order: -1; }
       /* Bỏ thẻ Vốn hóa Top 50 và Tăng/Giảm trong phần tổng quan */
       [data-ov="cap"], [data-ov="updown"] { display: none; }
       /* Ẩn card tâm lý lớn, thay bằng thanh nhỏ trên đầu */
@@ -429,8 +435,8 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin: 10px 10px 0;
-        padding: 10px 14px;
+        margin: 0;
+        padding: 12px 16px;
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: 12px;
@@ -487,18 +493,19 @@
   </div>
 </div>
 
-<!-- THANH TÂM LÝ (chỉ hiện trên mobile) -->
-<div class="fng-mobile-bar" id="fng-mobile-bar">
-  <span class="fng-mb-left">😱 Tâm lý thị trường</span>
-  <span class="fng-mb-right">
-    <span class="fng-mb-num" id="fng-mb-num">—</span>
-    <span class="fng-mb-label" id="fng-mb-label">Đang tải...</span>
-  </span>
-</div>
-
 <!-- MAIN -->
 <main>
   <div class="col-left">
+
+    <!-- THANH TÂM LÝ (chỉ hiện trên mobile) -->
+    <div class="fng-mobile-bar" id="fng-mobile-bar">
+      <span class="fng-mb-left">Tâm lý thị trường</span>
+      <span class="fng-mb-right">
+        <span class="fng-mb-num" id="fng-mb-num">—</span>
+        <span class="fng-mb-label" id="fng-mb-label">Đang tải...</span>
+      </span>
+    </div>
+
 
     <!-- OVERVIEW -->
     <div>
