@@ -841,13 +841,21 @@ function subscribeSymbols() {
   _ws.send(JSON.stringify({ method: 'SUBSCRIBE', params, id: 1 }))
 }
 
-// Cập nhật 1 ô giá + hiệu ứng nháy màu xanh/đỏ khi giá đổi
+// Hiệu ứng nháy màu nhẹ khi giá đổi — dịu, chậm, và hạn chế tần suất
 function flashCell(el, up) {
   if (!el) return
-  el.style.transition = 'color 0.15s'
-  el.style.color = up ? '#10b981' : '#ef4444'
+  const now = Date.now()
+  // Chặn nháy lại nếu vừa nháy trong vòng 2 giây (tránh chớp liên tục nhức mắt)
+  if (el._lastFlash && now - el._lastFlash < 2000) return
+  el._lastFlash = now
+  el.style.transition = 'color 0.25s ease'
+  el.style.color = up ? '#34d399' : '#f87171'   // xanh/đỏ nhạt, dịu mắt
   clearTimeout(el._flashT)
-  el._flashT = setTimeout(() => { el.style.color = '' }, 500)
+  // Giữ màu 0.4s rồi phai chậm về bình thường trong ~1.2s
+  el._flashT = setTimeout(() => {
+    el.style.transition = 'color 1.2s ease'
+    el.style.color = ''
+  }, 400)
 }
 
 function applyLivePrices(tickers) {
@@ -860,10 +868,11 @@ function applyLivePrices(tickers) {
     if (sym === 'PAXG') {
       const gp = parseFloat(t.c)
       if (isFinite(gp)) {
-        const up = gp >= (_goldXau ?? gp)
+        const prevGold = _goldXau
+        const goldChanged = prevGold != null && gp !== prevGold
         _goldXau = gp
         _goldChange = parseFloat(t.P) || _goldChange
-        renderGold(up)
+        renderGold(goldChanged ? gp > prevGold : undefined)
       }
       continue
     }
@@ -880,9 +889,10 @@ function applyLivePrices(tickers) {
       coin.current_price = price
       coin.price_change_percentage_24h = chg
       // ô giá trong bảng
+      const changed = price !== prev
       document.querySelectorAll(`[data-price-sym="${sym}"]`).forEach(el => {
         el.textContent = fmtPrice(price)
-        flashCell(el, price >= prev)
+        if (changed) flashCell(el, price > prev)
       })
       // ô 24h trong bảng
       document.querySelectorAll(`[data-chg-sym="${sym}"]`).forEach(td => {
