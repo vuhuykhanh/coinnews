@@ -1138,17 +1138,24 @@ let _newsTab = 'coin'
 let _coinNews = null   // mảng item đã xử lý
 let _vnNews = null
 
-// Chỉ giữ tin liên quan đến biến động GIÁ COIN
+// Loại tin ra mắt sản phẩm / công ty / gọi vốn... (không phải biến động giá)
+const COIN_BLOCK = ['launch','unveil','partner','valued','valuation','raise','raised','funding','fundrais','series a','series b','hire','hiring','appoint','integrat','feature','rolls out','roll out','tutorial','how to','guide','explained','interview','review','debut','introduc','airdrop','giveaway','mint','sponsor','collaborat','teams up','joins','rebrand','tokeniz','launchpad','unlock schedule','roadmap','whitepaper']
+// Từ chỉ biến động giá / chất xúc tác thị trường thật sự
+const COIN_SIGNAL = ['price','surge','rally','rallie','plunge','crash','soar','tumble','jump','spike','rebound','dip','sink','slump','slide','rise','rises','fall','falls','drop','gain','loss','sell-off','selloff','all-time high','ath','record high','breakout','pump','dump','liquidat','outflow','inflow','rate cut','rate hike','fed ','cpi','inflation','forecast','price target','correction','bull run','bear market','support','resistance','reclaim','reject','dominance','etf','approval','approve','halving','hits $','tops $','above $','below $','$1','$2','$3','$4','$5','$6','$7','$8','$9','k as','% ','soars','plunges','surges','crashes']
 function isCoinPriceNews(title) {
   const t = title.toLowerCase()
-  const kw = ['bitcoin','btc','ethereum','eth','xrp','solana','crypto','price','surge','rally','jump','plunge','crash','dump','pump','soar','tumble','all-time','ath','etf','sec','fed','rate','inflation','bull','bear','market','liquidat','billion','million','record','gain','rise','fall','drop','rebound','whale','halving','approval','outflow','inflow','sell-off','forecast','predict','target','$','trump','interest','rekt']
-  return kw.some(k => t.includes(k))
+  if (COIN_BLOCK.some(k => t.includes(k))) return false
+  return COIN_SIGNAL.some(k => t.includes(k))
 }
-// Chỉ giữ tin về VN-Index / chứng khoán / vàng / tỷ giá
+
+// Loại tin doanh nghiệp/sản phẩm VN (không phải biến động giá thị trường)
+const VN_BLOCK = ['ra mắt','hợp tác','định giá','gọi vốn','huy động vốn','bổ nhiệm','khai trương','tuyển dụng','ra mắt sản phẩm','tích hợp','giới thiệu','khởi công','động thổ','ký kết','hội thảo','tọa đàm','sa thải','dừng hoạt động']
+// Chủ đề thị trường VN thật sự ảnh hưởng giá
+const VN_SIGNAL = ['vn-index','vnindex','vn index','vn30','chứng khoán','cổ phiếu','giá vàng','vàng sjc','vàng nhẫn','vàng miếng','vàng','tỷ giá','usd','lãi suất','lạm phát','khối ngoại','thanh khoản','hose','hnx','phố wall','dow jones','nasdaq','s&p','chỉ số','phiên giao dịch','giá dầu','bạc','kim loại quý','blue-chip','vốn hóa','điểm số','lao dốc','bứt phá','đỏ lửa','xanh','tăng','giảm']
 function isVNMarketNews(title) {
   const t = title.toLowerCase()
-  const kw = ['vn-index','vnindex','vn index','vn30','chứng khoán','cổ phiếu','giá vàng','vàng sjc','vàng nhẫn','vàng miếng','vàng','tỷ giá','usd','lãi suất','lạm phát','khối ngoại','thanh khoản','hose','hnx','phố wall','dow jones','nasdaq','s&p','chỉ số','phiên giao dịch','giá dầu','bạc','kim loại quý','cổ phiếu','blue-chip','vốn hóa','điểm số']
-  return kw.some(k => t.includes(k))
+  if (VN_BLOCK.some(k => t.includes(k))) return false
+  return VN_SIGNAL.some(k => t.includes(k))
 }
 
 function newsSentiment(title) {
