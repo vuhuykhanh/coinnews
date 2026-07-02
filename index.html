@@ -7,19 +7,19 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     :root {
-      --bg: #0a0e1a;
-      --surface: #111827;
-      --card: #1a2235;
-      --card2: #1e2a3a;
-      --border: #2a3a52;
-      --accent: #3b82f6;
-      --accent2: #8b5cf6;
+      --bg: #131a2b;
+      --surface: #1a2333;
+      --card: #212d42;
+      --card2: #283650;
+      --border: #38496a;
+      --accent: #4f8df6;
+      --accent2: #9b7cf6;
       --green: #10b981;
       --red: #ef4444;
       --gold: #f59e0b;
-      --text: #f1f5f9;
-      --muted: #94a3b8;
-      --dim: #64748b;
+      --text: #f4f7fb;
+      --muted: #a8b6cc;
+      --dim: #7688a3;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -31,7 +31,7 @@
 
     /* HEADER */
     header {
-      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      background: linear-gradient(135deg, #1a2436 0%, #2c2668 100%);
       border-bottom: 1px solid var(--border);
       padding: 0 24px;
       display: flex;
@@ -79,7 +79,7 @@
 
     /* TICKER SCROLL */
     .ticker-wrap {
-      background: #0d1424;
+      background: #141d2f;
       border-bottom: 1px solid var(--border);
       overflow: hidden;
       height: 36px;
@@ -207,18 +207,18 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      background: #0f1624;
+      background: #1a2333;
       cursor: pointer;
       user-select: none;
     }
     thead th:first-child { text-align: left; }
     thead th:hover { color: var(--text); }
     tbody tr {
-      border-top: 1px solid #1e2a3a;
+      border-top: 1px solid #33445f;
       transition: background 0.15s;
       cursor: pointer;
     }
-    tbody tr:hover { background: #1e2d44; }
+    tbody tr:hover { background: #334463; }
     tbody td {
       padding: 12px 16px;
       font-size: 0.875rem;
@@ -323,7 +323,7 @@
     .news-list { }
     .news-item {
       padding: 14px 20px;
-      border-top: 1px solid #1e2a3a;
+      border-top: 1px solid #33445f;
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 12px;
@@ -333,7 +333,7 @@
       transition: background 0.15s;
     }
     .news-item:first-child { border-top: none; }
-    .news-item:hover { background: #1e2d44; }
+    .news-item:hover { background: #334463; }
     .news-title {
       font-size: 0.85rem;
       font-weight: 500;
@@ -548,7 +548,7 @@
               <stop offset="100%" stop-color="#10b981"/>
             </linearGradient>
           </defs>
-          <path d="M 10 90 A 90 90 0 0 1 190 90" fill="none" stroke="#1e2a3a" stroke-width="16" stroke-linecap="round"/>
+          <path d="M 10 90 A 90 90 0 0 1 190 90" fill="none" stroke="#33445f" stroke-width="16" stroke-linecap="round"/>
           <path id="fng-arc" d="M 10 90 A 90 90 0 0 1 190 90" fill="none" stroke="url(#grd)" stroke-width="16" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283"/>
           <line id="fng-needle" x1="100" y1="90" x2="100" y2="18" stroke="white" stroke-width="3" stroke-linecap="round" transform="rotate(0, 100, 90)"/>
           <circle cx="100" cy="90" r="5" fill="white"/>
@@ -976,7 +976,7 @@ async function loadChart(coin, days) {
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#1a2235',
+            backgroundColor: '#212d42',
             borderColor: '#2a3a52',
             borderWidth: 1,
             titleColor: '#94a3b8',
