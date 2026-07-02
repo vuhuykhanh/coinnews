@@ -635,7 +635,6 @@
     <div class="gold-wrap">
       <div class="gold-header">
         <div class="section-title" style="margin:0">📊 Chứng khoán Việt Nam</div>
-        <span style="font-size:0.72rem;color:var(--dim)" id="vnstock-time">—</span>
       </div>
       <div id="vnstock-body">
         <div class="error-msg">Đang tải chỉ số...</div>
@@ -1252,7 +1251,6 @@ async function loadVNStock() {
         <div class="gold-item-vnd" style="color:${col(o.chg)}">${arr(o.chg)} ${sign(o.chg)} (${sign(o.pct)}%)</div>
       </div>` : ''
 
-    document.getElementById('vnstock-time').textContent = 'CafeF · ' + new Date().toLocaleTimeString('vi-VN')
     document.getElementById('vnstock-body').innerHTML = `
       <div style="padding:16px 16px 6px;display:flex;justify-content:space-between;align-items:flex-end">
         <div>
