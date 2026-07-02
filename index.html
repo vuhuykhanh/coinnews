@@ -770,6 +770,7 @@ function renderOverview() {
   const btcChange = btc?.price_change_percentage_24h ?? 0
   const gainers = allCoins.filter(c => (c.price_change_percentage_24h ?? 0) > 0).length
   const losers = allCoins.filter(c => (c.price_change_percentage_24h ?? 0) < 0).length
+  const flat = allCoins.length - gainers - losers   // coin đứng giá (0%)
 
   document.getElementById('overview-grid').innerHTML = `
     <div class="overview-card" data-ov="cap">
@@ -789,8 +790,8 @@ function renderOverview() {
     </div>
     <div class="overview-card" data-ov="updown">
       <div class="ov-label">Tăng / Giảm hôm nay</div>
-      <div class="ov-value" style="color:var(--green)">${gainers} <span style="color:var(--dim);font-size:1rem">/</span> <span style="color:var(--red)">${losers}</span></div>
-      <div class="ov-sub neu">trong Top 50 coins</div>
+      <div class="ov-value" style="color:var(--green)">${gainers} <span style="color:var(--dim);font-size:1rem">/</span> <span style="color:var(--red)">${losers}</span>${flat > 0 ? ` <span style="color:var(--dim);font-size:1rem">/</span> <span style="color:var(--muted)">${flat}</span>` : ''}</div>
+      <div class="ov-sub neu">tăng / giảm${flat > 0 ? ' / đứng giá' : ''} · Top ${allCoins.length}</div>
     </div>
   `
 }
