@@ -1209,7 +1209,7 @@ async function translateVI(text) {
 async function fetchFeeds(feeds, filterFn) {
   const results = await Promise.all(feeds.map(async f => {
     try {
-      const d = await fetchJSON(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(f.url)}`, 120000)
+      const d = await fetchJSON(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(f.url)}`, 55000)
       if (d.status !== 'ok') return []
       return (d.items ?? []).map(it => ({ title: it.title, url: it.link, source: f.source, date: new Date(it.pubDate) }))
     } catch(_) { return [] }
@@ -1337,8 +1337,8 @@ init()
 setInterval(refresh, 20000)
 // Biểu đồ giá: cập nhật mỗi 30 giây (Binance nhanh, không lo rate limit)
 setInterval(() => loadChart(chartCoin, chartDays), 30000)
-// Tin tức: cập nhật mỗi 2 phút (RSS từ các trang uy tín)
-setInterval(loadNews, 120000)
+// Tin tức: cập nhật mỗi 1 phút (RSS nhẹ, không ảnh hưởng performance)
+setInterval(loadNews, 60000)
 </script>
 </body>
 </html>
