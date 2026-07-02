@@ -1,4 +1,4 @@
-# CryptoVN 📈
+# FireSkull 🔥
 
 Dashboard theo dõi thị trường tiền điện tử & giá vàng real-time, giao diện tiếng Việt.
 
