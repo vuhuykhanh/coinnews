@@ -622,6 +622,17 @@
       <p style="font-size:0.72rem;color:var(--dim);margin-top:12px">0 = Sợ hãi cực độ · 100 = Tham lam cực độ</p>
     </div>
 
+    <!-- CHỨNG KHOÁN VN -->
+    <div class="gold-wrap">
+      <div class="gold-header">
+        <div class="section-title" style="margin:0">📊 Chứng khoán Việt Nam</div>
+        <span style="font-size:0.72rem;color:var(--dim)" id="vnstock-time">—</span>
+      </div>
+      <div id="vnstock-body">
+        <div class="error-msg">Đang tải chỉ số...</div>
+      </div>
+    </div>
+
     <!-- GOLD -->
     <div class="gold-wrap">
       <div class="gold-header">
@@ -1206,6 +1217,59 @@ async function loadGold() {
   }
 }
 
+// ========== CHỨNG KHOÁN VN ==========
+// Nguồn: CafeF (banggia.cafef.vn) qua CORS proxy. Có VNINDEX, VN30, HNX, UPCOM + thanh khoản.
+async function loadVNStock() {
+  try {
+    const url = 'https://corsproxy.io/?url=' + encodeURIComponent('https://banggia.cafef.vn/stockhandler.ashx?index=true')
+    const data = await fetchJSON(url, 30000)
+    if (!Array.isArray(data)) throw new Error('bad data')
+    const num = (s) => parseFloat(String(s).replace(/,/g, '')) || 0
+    const byName = {}
+    data.forEach(x => byName[x.name] = x)
+    const get = (n) => { const x = byName[n]; return x ? { idx: num(x.index), chg: num(x.change), pct: num(x.percent), val: num(x.value) } : null }
+    const vn = get('VNINDEX'), vn30 = get('VN30'), hnx = get('HNXINDEX'), upcom = get('HNXUPCOMINDEX')
+    // Thanh khoản toàn thị trường = tổng giá trị giao dịch (tỷ đồng)
+    const totalVal = (vn?.val || 0) + (hnx?.val || 0) + (upcom?.val || 0)
+    const col = (v) => v >= 0 ? 'var(--green)' : 'var(--red)'
+    const arr = (v) => v >= 0 ? '▲' : '▼'
+    const sign = (v) => (v >= 0 ? '+' : '') + fmt(v, 2)
+    const fmtTy = (v) => v >= 1000 ? fmt(v/1000, 2) + ' nghìn tỷ' : fmt(v, 0) + ' tỷ'
+
+    const mini = (label, o) => o ? `
+      <div class="gold-item">
+        <div class="gold-item-label">${label}</div>
+        <div class="gold-item-price" style="color:${col(o.chg)};font-size:1.05rem">${fmt(o.idx, 2)}</div>
+        <div class="gold-item-vnd" style="color:${col(o.chg)}">${arr(o.chg)} ${sign(o.chg)} (${sign(o.pct)}%)</div>
+      </div>` : ''
+
+    document.getElementById('vnstock-time').textContent = 'CafeF · ' + new Date().toLocaleTimeString('vi-VN')
+    document.getElementById('vnstock-body').innerHTML = `
+      <div style="padding:16px 16px 6px;display:flex;justify-content:space-between;align-items:flex-end">
+        <div>
+          <div class="gold-item-label">VN-INDEX</div>
+          <div style="font-size:1.7rem;font-weight:800;color:${col(vn?.chg ?? 0)}">${vn ? fmt(vn.idx, 2) : '—'}</div>
+        </div>
+        <div style="text-align:right;color:${col(vn?.chg ?? 0)}">
+          <div style="font-weight:700">${arr(vn?.chg ?? 0)} ${vn ? sign(vn.chg) : '—'}</div>
+          <div style="font-size:0.82rem">${vn ? sign(vn.pct) + '%' : ''}</div>
+        </div>
+      </div>
+      <div class="gold-grid">
+        ${mini('VN30', vn30)}
+        ${mini('HNX-INDEX', hnx)}
+      </div>
+      <div style="padding:11px 16px;text-align:center;border-top:1px solid var(--border)">
+        <span style="font-size:0.72rem;color:var(--dim)">Thanh khoản toàn thị trường</span>
+        <div style="font-size:1.05rem;font-weight:700;color:var(--gold);margin-top:2px">${fmtTy(totalVal)}</div>
+      </div>
+    `
+  } catch(e) {
+    document.getElementById('vnstock-body').innerHTML = `<div class="error-msg">Không tải được chỉ số (chỉ có dữ liệu trong giờ giao dịch 9h–15h).</div>`
+    console.warn('VN stock error:', e)
+  }
+}
+
 // ========== NEWS ==========
 // 2 tab: Coin (nguồn quốc tế, dịch VN) và Chứng khoán·Vàng VN (nguồn tiếng Việt)
 const CRYPTO_FEEDS = [
@@ -1385,7 +1449,7 @@ async function init() {
   loadChart(chartCoin, chartDays)   // biểu đồ Binance nhanh — load ngay, không chờ
   connectWebSocket()                // giá real-time (Binance)
   await Promise.all([loadGlobalMarket(), loadCoins(), loadFearGreed()])
-  await Promise.all([loadGold(), loadDomesticGold(), loadNews()])
+  await Promise.all([loadGold(), loadDomesticGold(), loadNews(), loadVNStock()])
   updateTimestamp()
 }
 
@@ -1395,6 +1459,7 @@ async function refresh() {
   loadFearGreed()
   loadGold()
   loadDomesticGold()
+  loadVNStock()
   updateTimestamp()
 }
 
