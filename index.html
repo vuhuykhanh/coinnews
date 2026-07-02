@@ -938,16 +938,36 @@ function connectWebSocket() {
 }
 
 // ========== CHART ==========
+// Dữ liệu nến từ Binance (nhanh, không bị giới hạn như CoinGecko)
+const CHART_SYMBOL = { bitcoin:'BTCUSDT', ethereum:'ETHUSDT', binancecoin:'BNBUSDT', solana:'SOLUSDT', ripple:'XRPUSDT' }
+
+async function fetchKlines(symbol, interval, limit) {
+  const path = `/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
+  try {
+    const r = await fetch('https://api.binance.com' + path)
+    if (r.ok) return r.json()
+  } catch(_) {}
+  // dự phòng nếu api.binance.com bị chặn
+  const r2 = await fetch('https://data-api.binance.vision' + path)
+  return r2.json()
+}
+
 async function loadChart(coin, days) {
   try {
-    const data = await cgFetch(`${CG}/coins/${coin}/market_chart?vs_currency=usd&days=${days}`, 85000)
-    const prices = data.prices
-    const labels = prices.map(p => {
-      const d = new Date(p[0])
+    const symbol = CHART_SYMBOL[coin] || 'BTCUSDT'
+    // chọn khung nến theo khoảng thời gian
+    const cfg = days <= 1 ? { interval:'15m', limit:96 }
+              : days <= 7 ? { interval:'1h', limit:168 }
+              : { interval:'4h', limit:180 }
+    const klines = await fetchKlines(symbol, cfg.interval, cfg.limit)
+    if (!Array.isArray(klines) || !klines.length) throw new Error('empty klines')
+    // kline: [openTime, open, high, low, close, ...]
+    const labels = klines.map(k => {
+      const d = new Date(k[0])
       if (days <= 1) return d.toLocaleTimeString('vi-VN', {hour:'2-digit',minute:'2-digit'})
       return d.toLocaleDateString('vi-VN', {day:'2-digit',month:'2-digit'})
     })
-    const values = prices.map(p => p[1])
+    const values = klines.map(k => parseFloat(k[4]))
     const isUp = values[values.length-1] >= values[0]
     const color = isUp ? '#10b981' : '#ef4444'
 
@@ -1296,12 +1316,10 @@ function updateTimestamp() {
 
 // ========== INIT & AUTO-REFRESH ==========
 async function init() {
-  // Stagger CoinGecko calls to avoid rate limiting
+  loadChart(chartCoin, chartDays)   // biểu đồ Binance nhanh — load ngay, không chờ
+  connectWebSocket()                // giá real-time (Binance)
   await Promise.all([loadGlobalMarket(), loadCoins(), loadFearGreed()])
-  connectWebSocket()   // bật giá real-time (Binance) ngay khi có bảng coin
   await Promise.all([loadGold(), loadDomesticGold(), loadNews()])
-  await sleep(1500)
-  await loadChart(chartCoin, chartDays)
   updateTimestamp()
 }
 
@@ -1317,8 +1335,8 @@ async function refresh() {
 init()
 // Giá coin + ticker + vàng: cập nhật mỗi 20 giây
 setInterval(refresh, 20000)
-// Biểu đồ giá: cập nhật mỗi 90 giây (dữ liệu nặng, tránh rate limit)
-setInterval(() => loadChart(chartCoin, chartDays), 90000)
+// Biểu đồ giá: cập nhật mỗi 30 giây (Binance nhanh, không lo rate limit)
+setInterval(() => loadChart(chartCoin, chartDays), 30000)
 // Tin tức: cập nhật mỗi 2 phút (RSS từ các trang uy tín)
 setInterval(loadNews, 120000)
 </script>
