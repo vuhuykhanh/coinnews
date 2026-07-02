@@ -797,6 +797,25 @@ function renderOverview() {
 async function loadGlobalMarket() { renderOverview() }
 
 // ========== COINS ==========
+const COINS_LS_KEY = 'fireskull_coins_v1'
+
+// Hiển thị ngay bảng từ localStorage khi mở trang (dữ liệu lần trước),
+// tránh màn hình chờ khi CoinGecko bị giới hạn. Giá sẽ được Binance cập nhật live.
+function hydrateCoinsFromCache() {
+  try {
+    const raw = localStorage.getItem(COINS_LS_KEY)
+    if (!raw) return false
+    const cached = JSON.parse(raw)
+    if (!Array.isArray(cached) || !cached.length) return false
+    allCoins = cached
+    buildSymbolMap()
+    renderTable()
+    renderTicker(cached.slice(0, 20))
+    renderOverview()
+    return true
+  } catch(_) { return false }
+}
+
 async function loadCoins() {
   try {
     const coins = await cgFetch(`${CG}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=true&price_change_percentage=24h,7d`, 15000)
@@ -806,12 +825,14 @@ async function loadCoins() {
     renderTable()
     renderTicker(coins.slice(0, 20))
     renderOverview()
+    // lưu lại để lần mở sau hiện ngay
+    try { localStorage.setItem(COINS_LS_KEY, JSON.stringify(coins)) } catch(_) {}
   } catch(e) {
     console.warn('Coins error:', e)
-    // Chỉ hiện lỗi nếu CHƯA có dữ liệu nào; nếu đã có thì giữ nguyên bảng cũ
+    // Chỉ hiện lỗi nếu CHƯA có dữ liệu nào (kể cả cache); nếu đã có thì giữ nguyên bảng cũ
     if (!allCoins.length) {
       document.getElementById('coin-table-body').innerHTML =
-        `<tr><td colspan="7"><div class="error-msg">Đang kết nối lại nguồn dữ liệu... (tự động thử lại)</div></td></tr>`
+        `<tr><td colspan="7"><div class="error-msg">Đang tải dữ liệu...</div></td></tr>`
     }
   }
 }
@@ -1453,6 +1474,7 @@ function updateTimestamp() {
 
 // ========== INIT & AUTO-REFRESH ==========
 async function init() {
+  hydrateCoinsFromCache()           // hiện ngay bảng từ lần trước (nếu có)
   loadChart(chartCoin, chartDays)   // biểu đồ Binance nhanh — load ngay, không chờ
   connectWebSocket()                // giá real-time (Binance)
   await Promise.all([loadGlobalMarket(), loadCoins(), loadFearGreed()])
