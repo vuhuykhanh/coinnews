@@ -717,13 +717,19 @@ async function loadGlobalMarket() { renderOverview() }
 async function loadCoins() {
   try {
     const coins = await cgFetch(`${CG}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=true&price_change_percentage=24h,7d`, 15000)
+    if (!Array.isArray(coins) || !coins.length) throw new Error('empty response')
     allCoins = coins
+    buildSymbolMap()
     renderTable()
     renderTicker(coins.slice(0, 20))
     renderOverview()
   } catch(e) {
-    document.getElementById('coin-table-body').innerHTML = `<tr><td colspan="7"><div class="error-msg">Không tải được dữ liệu. Vui lòng F5 lại trang.</div></td></tr>`
     console.warn('Coins error:', e)
+    // Chỉ hiện lỗi nếu CHƯA có dữ liệu nào; nếu đã có thì giữ nguyên bảng cũ
+    if (!allCoins.length) {
+      document.getElementById('coin-table-body').innerHTML =
+        `<tr><td colspan="7"><div class="error-msg">Đang kết nối lại nguồn dữ liệu... (tự động thử lại)</div></td></tr>`
+    }
   }
 }
 
@@ -751,6 +757,7 @@ function renderTable() {
     const ch7 = c.price_change_percentage_7d_in_currency
     const spark = c.sparkline_in_7d?.price ?? []
     const sparkId = `spark-${c.id}`
+    const sym = c.symbol.toUpperCase()
     return `
     <tr onclick="selectChartCoin('${c.id}')">
       <td>
@@ -759,12 +766,12 @@ function renderTable() {
           <img class="coin-icon" src="${c.image}" alt="${c.symbol}" loading="lazy" onerror="this.style.display='none'">
           <div class="coin-name-wrap">
             <div class="coin-name">${c.name}</div>
-            <div class="coin-symbol">${c.symbol.toUpperCase()}</div>
+            <div class="coin-symbol">${sym}</div>
           </div>
         </div>
       </td>
-      <td class="price-cell">${fmtPrice(c.current_price)}</td>
-      <td><span class="change-badge ${clsChange(ch24)}">${arrowChange(ch24)} ${Math.abs(ch24 ?? 0).toFixed(2)}%</span></td>
+      <td class="price-cell" data-price-sym="${sym}">${fmtPrice(c.current_price)}</td>
+      <td data-chg-sym="${sym}"><span class="change-badge ${clsChange(ch24)}">${arrowChange(ch24)} ${Math.abs(ch24 ?? 0).toFixed(2)}%</span></td>
       <td><span class="change-badge ${clsChange(ch7)}">${arrowChange(ch7)} ${Math.abs(ch7 ?? 0).toFixed(2)}%</span></td>
       <td class="sparkline-cell"><canvas id="${sparkId}" width="80" height="32"></canvas></td>
       <td class="volume-cell">${fmtUSD(c.total_volume)}</td>
@@ -803,14 +810,105 @@ function drawSparkline(canvas, data, isUp) {
 function renderTicker(coins) {
   const items = coins.map(c => {
     const ch = c.price_change_percentage_24h
+    const sym = c.symbol.toUpperCase()
     return `<span class="ticker-item">
-      <span class="ticker-symbol">${c.symbol.toUpperCase()}</span>
-      <span class="ticker-price">${fmtPrice(c.current_price)}</span>
-      <span class="ticker-change ${clsChange(ch)}">${arrowChange(ch)} ${Math.abs(ch).toFixed(2)}%</span>
+      <span class="ticker-symbol">${sym}</span>
+      <span class="ticker-price" data-tick-price="${sym}">${fmtPrice(c.current_price)}</span>
+      <span class="ticker-change ${clsChange(ch)}" data-tick-chg="${sym}">${arrowChange(ch)} ${Math.abs(ch).toFixed(2)}%</span>
     </span>`
   }).join('')
   const ticker = document.getElementById('ticker')
   ticker.innerHTML = items + items // duplicate for seamless loop
+}
+
+// ========== REAL-TIME PRICE (Binance WebSocket) ==========
+// Cập nhật giá từng giây như CoinMarketCap, không phụ thuộc rate limit của CoinGecko.
+let _symbolSet = new Set()      // các symbol có trong bảng (VD: BTC, ETH...)
+let _ws = null
+let _wsReconnectTimer = null
+
+function buildSymbolMap() {
+  _symbolSet = new Set(allCoins.map(c => c.symbol.toUpperCase()))
+  subscribeSymbols()  // đăng ký lại nếu WebSocket đang mở
+}
+
+// Đăng ký nhận giá real-time cho các cặp <symbol>USDT trên Binance
+function subscribeSymbols() {
+  if (!_ws || _ws.readyState !== 1 || !_symbolSet.size) return
+  const params = [..._symbolSet].map(s => `${s.toLowerCase()}usdt@ticker`)
+  _ws.send(JSON.stringify({ method: 'SUBSCRIBE', params, id: 1 }))
+}
+
+// Cập nhật 1 ô giá + hiệu ứng nháy màu xanh/đỏ khi giá đổi
+function flashCell(el, up) {
+  if (!el) return
+  el.style.transition = 'color 0.15s'
+  el.style.color = up ? '#10b981' : '#ef4444'
+  clearTimeout(el._flashT)
+  el._flashT = setTimeout(() => { el.style.color = '' }, 500)
+}
+
+function applyLivePrices(tickers) {
+  for (const t of tickers) {
+    const s = t.s
+    if (!s || !s.endsWith('USDT')) continue
+    const sym = s.slice(0, -4)          // BTCUSDT -> BTC
+    if (!_symbolSet.has(sym)) continue
+    const price = parseFloat(t.c)       // last price
+    const chg = parseFloat(t.P)         // 24h % change
+    if (!isFinite(price)) continue
+
+    // cập nhật state để sort/overview vẫn đúng
+    const coin = allCoins.find(c => c.symbol.toUpperCase() === sym)
+    if (coin) {
+      const prev = coin.current_price
+      coin.current_price = price
+      coin.price_change_percentage_24h = chg
+      // ô giá trong bảng
+      document.querySelectorAll(`[data-price-sym="${sym}"]`).forEach(el => {
+        el.textContent = fmtPrice(price)
+        flashCell(el, price >= prev)
+      })
+      // ô 24h trong bảng
+      document.querySelectorAll(`[data-chg-sym="${sym}"]`).forEach(td => {
+        const badge = td.querySelector('.change-badge')
+        if (badge) {
+          badge.className = `change-badge ${clsChange(chg)}`
+          badge.textContent = `${arrowChange(chg)} ${Math.abs(chg).toFixed(2)}%`
+        }
+      })
+    }
+    // ticker chạy
+    document.querySelectorAll(`[data-tick-price="${sym}"]`).forEach(el => el.textContent = fmtPrice(price))
+    document.querySelectorAll(`[data-tick-chg="${sym}"]`).forEach(el => {
+      el.className = `ticker-change ${clsChange(chg)}`
+      el.textContent = `${arrowChange(chg)} ${Math.abs(chg).toFixed(2)}%`
+    })
+  }
+}
+
+function connectWebSocket() {
+  try {
+    _ws = new WebSocket('wss://stream.binance.com:9443/ws')
+    _ws.onopen = () => subscribeSymbols()   // đăng ký ngay khi kết nối mở
+    _ws.onmessage = (ev) => {
+      try {
+        const d = JSON.parse(ev.data)
+        // Mỗi ticker riêng lẻ có e === '24hrTicker'; gói vào mảng để dùng chung
+        if (d && d.e === '24hrTicker') applyLivePrices([d])
+        else if (Array.isArray(d)) applyLivePrices(d)
+      } catch(_) {}
+    }
+    _ws.onclose = () => {
+      clearTimeout(_wsReconnectTimer)
+      _wsReconnectTimer = setTimeout(connectWebSocket, 5000)  // tự kết nối lại
+    }
+    _ws.onerror = () => { try { _ws.close() } catch(_){} }
+  } catch(e) {
+    console.warn('WebSocket error:', e)
+    clearTimeout(_wsReconnectTimer)
+    _wsReconnectTimer = setTimeout(connectWebSocket, 5000)
+  }
 }
 
 // ========== CHART ==========
@@ -1097,6 +1195,7 @@ function updateTimestamp() {
 async function init() {
   // Stagger CoinGecko calls to avoid rate limiting
   await Promise.all([loadGlobalMarket(), loadCoins(), loadFearGreed()])
+  connectWebSocket()   // bật giá real-time (Binance) ngay khi có bảng coin
   await Promise.all([loadGold(), loadNews()])
   await sleep(1500)
   await loadChart(chartCoin, chartDays)
