@@ -416,6 +416,28 @@
       .cap-cell, .volume-cell { display: none; }
       .sparkline-cell { display: none; }
     }
+    /* Điện thoại */
+    @media (max-width: 560px) {
+      main { padding: 16px 10px; gap: 16px; }
+      header { padding: 0 14px; height: 56px; }
+      .logo { font-size: 1.1rem; gap: 7px; }
+      .logo-icon { font-size: 1.35rem; }
+      #last-updated { display: none; }              /* gọn header, tránh chật */
+      .header-right { gap: 10px; }
+      /* Thẻ tổng quan: 1 cột, không bị cắt chữ */
+      .overview-grid { grid-template-columns: 1fr; }
+      .overview-card { padding: 13px 15px; }
+      .ov-value { font-size: 1.25rem; }
+      .section-title { font-size: 0.9rem; }
+      .table-header, .news-header, .gold-header, .chart-header { padding: 13px 14px; }
+      thead th, tbody td { padding: 10px 10px; font-size: 0.8rem; }
+      .coin-info { gap: 7px; }
+      .coin-icon, .coin-icon-placeholder { width: 26px; height: 26px; }
+      .chart-body { padding: 10px 6px; height: 220px; }
+      .chart-btn { padding: 5px 10px; font-size: 0.75rem; }
+      .news-item { padding: 12px 14px; }
+      .fng-card, .overview-card { border-radius: 12px; }
+    }
   </style>
 </head>
 <body>
