@@ -596,9 +596,12 @@
 
     <!-- NEWS -->
     <div class="news-card">
-      <div class="news-header">
+      <div class="news-header" style="flex-direction:column;align-items:stretch;gap:10px">
         <div class="section-title" style="margin:0">📰 Tin tức thị trường</div>
-        <span style="font-size:0.72rem;color:var(--dim)">Dịch tự động 🇻🇳</span>
+        <div class="table-tabs" id="news-tabs" style="width:100%">
+          <button class="tab-btn active" data-news="coin" style="flex:1">🪙 Coin</button>
+          <button class="tab-btn" data-news="vn" style="flex:1">🇻🇳 Chứng khoán · Vàng</button>
+        </div>
       </div>
       <div class="news-list" id="news-list">
         <div class="error-msg">Đang tải tin tức...</div>
@@ -1118,18 +1121,41 @@ async function loadGold() {
 }
 
 // ========== NEWS ==========
-// Nguồn uy tín, cập nhật liên tục qua RSS -> rss2json (CORS-friendly)
-const NEWS_FEEDS = [
+// 2 tab: Coin (nguồn quốc tế, dịch VN) và Chứng khoán·Vàng VN (nguồn tiếng Việt)
+const CRYPTO_FEEDS = [
   { url: 'https://cointelegraph.com/rss', source: 'CoinTelegraph' },
   { url: 'https://www.coindesk.com/arc/outboundfeeds/rss/', source: 'CoinDesk' },
   { url: 'https://decrypt.co/feed', source: 'Decrypt' },
   { url: 'https://cryptoslate.com/feed/', source: 'CryptoSlate' },
 ]
+const VN_FEEDS = [
+  { url: 'https://cafef.vn/thi-truong-chung-khoan.rss', source: 'CafeF' },
+  { url: 'https://vnexpress.net/rss/kinh-doanh.rss', source: 'VnExpress' },
+]
 const _translateCache = {}
+const NEWS_LABEL = { bull:'Tích cực', bear:'Tiêu cực', neu:'Trung lập' }
+let _newsTab = 'coin'
+let _coinNews = null   // mảng item đã xử lý
+let _vnNews = null
+
+// Chỉ giữ tin liên quan đến biến động GIÁ COIN
+function isCoinPriceNews(title) {
+  const t = title.toLowerCase()
+  const kw = ['bitcoin','btc','ethereum','eth','xrp','solana','crypto','price','surge','rally','jump','plunge','crash','dump','pump','soar','tumble','all-time','ath','etf','sec','fed','rate','inflation','bull','bear','market','liquidat','billion','million','record','gain','rise','fall','drop','rebound','whale','halving','approval','outflow','inflow','sell-off','forecast','predict','target','$','trump','interest','rekt']
+  return kw.some(k => t.includes(k))
+}
+// Chỉ giữ tin về VN-Index / chứng khoán / vàng / tỷ giá
+function isVNMarketNews(title) {
+  const t = title.toLowerCase()
+  const kw = ['vn-index','vnindex','vn index','vn30','chứng khoán','cổ phiếu','giá vàng','vàng sjc','vàng nhẫn','vàng miếng','vàng','tỷ giá','usd','lãi suất','lạm phát','khối ngoại','thanh khoản','hose','hnx','phố wall','dow jones','nasdaq','s&p','chỉ số','phiên giao dịch','giá dầu','bạc','kim loại quý','cổ phiếu','blue-chip','vốn hóa','điểm số']
+  return kw.some(k => t.includes(k))
+}
 
 function newsSentiment(title) {
-  const bull = ['surge','rally','jump','rise','gain','gains','breakout','bullish','ath','record high','soar','soars','pump','rebound','recover','high','inflow','adopt','approval','buy','boost']
-  const bear = ['crash','fall','falls','dump','drop','drops','loss','losses','plunge','bearish','fear','sell-off','ban','banned','hack','hacked','fraud','collapse','decline','outflow','liquidation','warning','lawsuit','sink','tumble']
+  const bull = ['surge','rally','jump','rise','gain','gains','breakout','bullish','ath','record high','soar','soars','pump','rebound','recover','high','inflow','adopt','approval','buy','boost',
+    'tăng','bứt phá','khởi sắc','lập đỉnh','hồi phục','tích cực','kỷ lục','vượt','xanh','đột phá']
+  const bear = ['crash','fall','falls','dump','drop','drops','loss','losses','plunge','bearish','fear','sell-off','ban','banned','hack','hacked','fraud','collapse','decline','outflow','liquidation','warning','lawsuit','sink','tumble',
+    'giảm','lao dốc','bán tháo','sụt','đỏ','mất','cảnh báo','rủi ro','tiêu cực','đáy','lỗ','thất thế','giảm sàn']
   const t = title.toLowerCase()
   const b = bull.filter(k => t.includes(k)).length
   const s = bear.filter(k => t.includes(k)).length
@@ -1138,7 +1164,7 @@ function newsSentiment(title) {
   return 'neu'
 }
 
-// Dịch 1 tiêu đề sang tiếng Việt qua Google Translate (miễn phí), có cache
+// Dịch tiêu đề sang tiếng Việt qua Google Translate (miễn phí), có cache
 async function translateVI(text) {
   if (_translateCache[text]) return _translateCache[text]
   try {
@@ -1148,57 +1174,57 @@ async function translateVI(text) {
     _translateCache[text] = vi
     return vi
   } catch(_) {
-    return text // fallback giữ nguyên tiếng Anh nếu dịch lỗi
+    return text
   }
 }
 
-async function loadNews() {
-  const labelMap = { bull:'Tích cực', bear:'Tiêu cực', neu:'Trung lập' }
+// Lấy + lọc + gộp RSS
+async function fetchFeeds(feeds, filterFn) {
+  const results = await Promise.all(feeds.map(async f => {
+    try {
+      const d = await fetchJSON(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(f.url)}`, 120000)
+      if (d.status !== 'ok') return []
+      return (d.items ?? []).map(it => ({ title: it.title, url: it.link, source: f.source, date: new Date(it.pubDate) }))
+    } catch(_) { return [] }
+  }))
+  let items = results.flat().filter(x => x.title && !isNaN(x.date) && filterFn(x.title))
+  const seen = new Set()
+  items = items.filter(x => { const k = x.title.slice(0,40); if (seen.has(k)) return false; seen.add(k); return true })
+  items.sort((a,b) => b.date - a.date)
+  return items.slice(0, 15)
+}
+
+async function loadCoinNews() {
+  const items = await fetchFeeds(CRYPTO_FEEDS, isCoinPriceNews)
+  const translated = await Promise.all(items.map(it => translateVI(it.title)))
+  _coinNews = items.map((it, i) => ({ title: translated[i], url: it.url, source: it.source, date: it.date, sentiment: newsSentiment(it.title) }))
+  if (_newsTab === 'coin') renderNews()
+}
+
+async function loadVNNews() {
+  const items = await fetchFeeds(VN_FEEDS, isVNMarketNews)
+  _vnNews = items.map(it => ({ title: it.title, url: it.url, source: it.source, date: it.date, sentiment: newsSentiment(it.title) }))
+  if (_newsTab === 'vn') renderNews()
+}
+
+function renderNews() {
   const nl = document.getElementById('news-list')
-  try {
-    // Lấy song song tất cả nguồn RSS
-    const feedResults = await Promise.all(NEWS_FEEDS.map(async f => {
-      try {
-        const d = await fetchJSON(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(f.url)}`, 120000)
-        if (d.status !== 'ok') return []
-        return (d.items ?? []).map(it => ({
-          title: it.title,
-          url: it.link,
-          source: f.source,
-          date: new Date(it.pubDate),
-        }))
-      } catch(_) { return [] }
-    }))
+  const data = _newsTab === 'coin' ? _coinNews : _vnNews
+  if (data == null) { nl.innerHTML = `<div class="error-msg">Đang tải tin tức...</div>`; return }
+  if (!data.length) { nl.innerHTML = `<div class="error-msg">Chưa có tin liên quan đến biến động giá lúc này.</div>`; return }
+  nl.innerHTML = data.map(it => `
+    <a class="news-item" href="${it.url}" target="_blank" rel="noopener">
+      <div>
+        <div class="news-title">${it.title}</div>
+        <div class="news-meta">${it.source} · ${timeAgo(it.date)}</div>
+      </div>
+      <span class="news-sentiment ${it.sentiment}">${NEWS_LABEL[it.sentiment]}</span>
+    </a>`).join('')
+}
 
-    // Gộp, loại trùng, sắp xếp mới nhất
-    let items = feedResults.flat().filter(x => x.title && !isNaN(x.date))
-    const seen = new Set()
-    items = items.filter(x => { const k = x.title.slice(0,40); if (seen.has(k)) return false; seen.add(k); return true })
-    items.sort((a,b) => b.date - a.date)
-    items = items.slice(0, 15)
-    if (!items.length) throw new Error('empty')
-
-    // Dịch tất cả tiêu đề song song
-    const translated = await Promise.all(items.map(it => translateVI(it.title)))
-
-    nl.innerHTML = items.map((it, i) => {
-      const s = newsSentiment(it.title)
-      const ago = timeAgo(it.date)
-      return `<a class="news-item" href="${it.url}" target="_blank" rel="noopener">
-        <div>
-          <div class="news-title">${translated[i]}</div>
-          <div class="news-meta">${it.source} · ${ago}</div>
-        </div>
-        <span class="news-sentiment ${s}">${labelMap[s]}</span>
-      </a>`
-    }).join('')
-  } catch(e) {
-    nl.innerHTML = `<div class="error-msg">Không tải được tin tức lúc này. Thử lại sau ít phút.<br>
-      <a href="https://cointelegraph.com" target="_blank" style="color:var(--accent);text-decoration:none">CoinTelegraph</a> ·
-      <a href="https://coindesk.com" target="_blank" style="color:var(--accent);text-decoration:none">CoinDesk</a> ·
-      <a href="https://decrypt.co" target="_blank" style="color:var(--accent);text-decoration:none">Decrypt</a></div>`
-    console.warn('News error:', e)
-  }
+async function loadNews() {
+  await Promise.all([loadCoinNews(), loadVNNews()])
+  renderNews()
 }
 
 function timeAgo(date) {
@@ -1243,6 +1269,16 @@ document.querySelectorAll('#chart-range-btns .chart-btn').forEach(btn => {
     btn.classList.add('active')
     chartDays = parseInt(btn.dataset.days)
     loadChart(chartCoin, chartDays)
+  })
+})
+
+// Tab tin tức: Coin / Chứng khoán·Vàng VN
+document.querySelectorAll('#news-tabs .tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#news-tabs .tab-btn').forEach(b => b.classList.remove('active'))
+    btn.classList.add('active')
+    _newsTab = btn.dataset.news
+    renderNews()
   })
 })
 
