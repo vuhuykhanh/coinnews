@@ -841,13 +841,9 @@ function subscribeSymbols() {
   _ws.send(JSON.stringify({ method: 'SUBSCRIBE', params, id: 1 }))
 }
 
-// Hiệu ứng nháy màu nhẹ khi giá đổi — dịu, chậm, và hạn chế tần suất
+// Hiệu ứng nháy màu nhẹ — CHỈ gọi khi con số hiển thị thực sự thay đổi
 function flashCell(el, up) {
   if (!el) return
-  const now = Date.now()
-  // Chặn nháy lại nếu vừa nháy trong vòng 2 giây (tránh chớp liên tục nhức mắt)
-  if (el._lastFlash && now - el._lastFlash < 2000) return
-  el._lastFlash = now
   el.style.transition = 'color 0.25s ease'
   el.style.color = up ? '#34d399' : '#f87171'   // xanh/đỏ nhạt, dịu mắt
   clearTimeout(el._flashT)
@@ -869,7 +865,8 @@ function applyLivePrices(tickers) {
       const gp = parseFloat(t.c)
       if (isFinite(gp)) {
         const prevGold = _goldXau
-        const goldChanged = prevGold != null && gp !== prevGold
+        // chỉ nháy khi số hiển thị ($x,xxx.xx) khác
+        const goldChanged = prevGold != null && fmt(gp) !== fmt(prevGold)
         _goldXau = gp
         _goldChange = parseFloat(t.P) || _goldChange
         renderGold(goldChanged ? gp > prevGold : undefined)
@@ -889,9 +886,10 @@ function applyLivePrices(tickers) {
       coin.current_price = price
       coin.price_change_percentage_24h = chg
       // ô giá trong bảng
-      const changed = price !== prev
+      const newText = fmtPrice(price)
+      const changed = prev != null && newText !== fmtPrice(prev)  // chỉ tính đổi khi SỐ HIỂN THỊ khác
       document.querySelectorAll(`[data-price-sym="${sym}"]`).forEach(el => {
-        el.textContent = fmtPrice(price)
+        el.textContent = newText
         if (changed) flashCell(el, price > prev)
       })
       // ô 24h trong bảng
